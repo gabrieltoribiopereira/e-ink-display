@@ -11,12 +11,12 @@ const pantallas = {
       { emoji: "🔽", texto: "Down",  accion: () => calScroll(300) },
       { emoji: "🗓️", texto: "View",  accion: calToggleVista }
     ],
-  "pantalla-todo": [
-    { emoji: "🏠", texto: "",  accion: () => mostrar("pantalla-inicio") },
-    { emoji: "➕", texto: "",  accion: () => console.log("añadir tarea") },
-    { emoji: "✔️", texto: "",  accion: () => console.log("completar") },
-    { emoji: "🗑️", texto: "",  accion: () => console.log("borrar") }
-  ],
+    "pantalla-todo": [
+       { emoji: "🏠", texto: "Start",  accion: () => mostrar("pantalla-inicio") },
+       { emoji: "🔼", texto: "Up",     accion: () => moverSeleccion(-1) },
+       { emoji: "🔽", texto: "Down",   accion: () => moverSeleccion(1) },
+       { emoji: "✔️", texto: "Done",   accion: () => marcarHecha() }
+     ],
   "pantalla-habitos": [
     { emoji: "🏠", texto: "",  accion: () => mostrar("pantalla-inicio") },
     { emoji: "➕", texto: "",  accion: () => console.log("nuevo hábito") },
@@ -49,3 +49,12 @@ function render() {
 }
 
 mostrar("pantalla-inicio");
+
+function mostrar(id) {
+  modo = id;
+  if (id === "pantalla-calendario") calCargar();
+  if (id === "pantalla-todo") cargarTareas();
+  document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("activa"));
+  document.getElementById(id).classList.add("activa");
+  render();
+}

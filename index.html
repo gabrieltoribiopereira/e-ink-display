@@ -13,6 +13,7 @@
 
 
     <body >
+
         <div class="contenedor">
             <!-- Hora y clima -->
             <div class="pantalla" style="text-align: center;" id="pantalla-inicio">
@@ -33,7 +34,10 @@
 
 
             <!--To-Do -->
-            <div class="pantalla" id="pantalla-todo"><h1>To-do</h1></div>
+            <div class="pantalla" id="pantalla-todo">
+                <h1>To-do</h1>
+                <div id="lista-tareas"></div>
+            </div>
 
 
             <!--Habitos -->
@@ -54,9 +58,11 @@
             <button data-id="b4" class="boton"></button>
         </div>
 
+        <script src="config.js"></script>
         <script src="calendar.js"></script>
         <script src="tiempo.js"></script>
         <script src="script.js"></script>
+        <script src="to-do.js"></script>
 
     </body>
 

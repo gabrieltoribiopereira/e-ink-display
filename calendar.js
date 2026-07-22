@@ -1,5 +1,5 @@
 const CAL_BASE = "https://open-web-calendar.hosted.quelltext.eu/calendar.html";
-const CAL_ICS = "https://calendar.google.com/calendar/ical/19cda81df0b9e0c89078ff7831af7bd03ed0de75d581db124c4cdd972e083dc4%40group.calendar.google.com/private-d81b828977bc867c91286aab4702a82a/basic.ics";
+const CAL_ICS = CONFIG.ICS;
 
 const CAL_JS = `
 window.addEventListener("message", function (e) {

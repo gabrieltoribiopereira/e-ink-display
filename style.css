@@ -101,3 +101,29 @@ body {
     text-align: center;
     padding: 6px 0;
 }
+
+.tarea {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    padding: 10px 20px;
+    border-bottom: 1px solid #ccc;
+}
+
+.tarea .titulo {
+    font-size: 22px;
+}
+
+.tarea .fecha {
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+.tarea.hecha {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.tarea.seleccionada {
+    background: grey;
+}

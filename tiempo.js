@@ -56,8 +56,8 @@ getCurrentTimeDate()
 setInterval(getCurrentTimeDate, 500)
 
 async function getWeather() {
-  const lat = 41.61;
-  const lon = 2.29;
+  const lat = CONFIG.LAT;
+  const lon = CONFIG.LON;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`;
 
   const res = await fetch(url);
