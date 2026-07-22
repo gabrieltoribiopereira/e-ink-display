@@ -4,6 +4,7 @@
 
     <head>
         <meta charset="UTF-8">
+        <title>Calendar</title>
         <link rel="stylesheet" type="text/css"  href="style.css">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,27 +14,50 @@
 
     <body >
         <div class="contenedor">
-            <div class="noto-serif" style="text-align: center;">
+            <!-- Hora y clima -->
+            <div class="pantalla" style="text-align: center;" id="pantalla-inicio">
                 <h1 id="time">1:20PM</h1>
                 <h2 id="date">21 Jul 2026</h2>
+                <div class="fila" style="text-align: center;">
+                    <h1 id="condition">--</h1>
+                    <p id="temp">--ºC</p>
+                </div>
             </div>
 
-            <div class="noto-serif fila" style="text-align: center;">
 
-                <h1 id="condition">--</h1>
-                <p id="temp">--ºC</p>
 
+            <!--Calendario -->
+            <iframe class="pantalla" id="pantalla-calendario"
+                    sandbox="allow-scripts allow-same-origin"
+                    frameborder="0" scrolling="no"></iframe>
+
+
+            <!--To-Do -->
+            <div class="pantalla" id="pantalla-todo"><h1>To-do</h1></div>
+
+
+            <!--Habitos -->
+
+            <div class="pantalla" id="pantalla-habitos"><h1>Hábitos</h1></div>
+
+            <!--barra inferior -->
+            <div class="barra">
+                <span></span><span></span><span></span><span></span>
             </div>
 
-            <script src="principal.js"></script>
 
         </div>
         <div class="botones">
-            <div class="boton"></div>
-            <div class="boton"></div>
-            <div class="boton"></div>
-            <div class="boton"></div>
+            <button data-id="b1" class="boton"></button>
+            <button data-id="b2" class="boton"></button>
+            <button data-id="b3" class="boton"></button>
+            <button data-id="b4" class="boton"></button>
         </div>
+
+        <script src="calendar.js"></script>
+        <script src="tiempo.js"></script>
+        <script src="script.js"></script>
+
     </body>
 
 </html>
