@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Hábitos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="frame">
+
+    <header>
+      <h1 id="titulo">HÁBITOS</h1>
+      <p class="meta" id="meta">—</p>
+    </header>
+
+    <!-- VISTA 1: MARCAR HABITOS -->
+    <div id="vista-habitos">
+      <ul class="lista" id="lista"></ul>
+
+      <div class="form-add">
+        <input type="text" id="nuevo" placeholder="Nuevo hábito" maxlength="24" autocomplete="off">
+        <button id="add">Añadir</button>
+      </div>
+    </div>
+
+    <!-- VISTA 2: CONSTANCIA -->
+    <div id="vista-constancia" hidden>
+
+      <div class="leyenda">
+        <h2 class="lbl">Últimas 26 semanas</h2>
+        <div class="escala">
+          <i></i><i class="n1"></i><i class="n2"></i><i class="n3"></i><i class="n4"></i>
+        </div>
+      </div>
+
+      <div class="heat" id="heat"></div>
+
+      <hr class="sep">
+
+      <section>
+        <h2 class="lbl">Racha</h2>
+        <div class="racha">
+          <span class="racha-num" id="racha-num">0</span>
+          <div class="racha-txt">
+            <p>días seguidos</p>
+            <p id="racha-record">Récord: 0</p>
+          </div>
+        </div>
+      </section>
+
+      <hr class="sep">
+
+      <section>
+        <h2 class="lbl">Por hábito · esta semana</h2>
+        <div id="barras"></div>
+      </section>
+
+      <hr class="sep">
+
+      <p class="footer" id="footer">—</p>
+
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn" data-vista="habitos">Hábitos</button>
+    <button class="nav-btn" data-vista="constancia">Constancia</button>
+  </nav>
+
+  <script type="module">
+    import { iniciarHabitos } from './script.js';
+    iniciarHabitos();
+  </script>
+</body>
+</html>

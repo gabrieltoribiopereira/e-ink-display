@@ -4,11 +4,13 @@
 
     <head>
         <meta charset="UTF-8">
-        <title>Calendar</title>
+        <title>Display</title>
+
         <link rel="stylesheet" type="text/css"  href="style.css">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
     </head>
 
 
@@ -41,8 +43,10 @@
 
 
             <!--Habitos -->
-
-            <div class="pantalla" id="pantalla-habitos"><h1>Hábitos</h1></div>
+            <!--Habitos -->
+            <div class="pantalla" id="pantalla-habitos">
+                <div id="contenedor-tracker"></div>
+            </div>
 
             <!--barra inferior -->
             <div class="barra">
@@ -50,6 +54,8 @@
             </div>
 
 
+
+        <!--botones mejor no tocar porque esta bien-->
         </div>
         <div class="botones">
             <button data-id="b1" class="boton"></button>
@@ -63,6 +69,7 @@
         <script src="tiempo.js"></script>
         <script src="script.js"></script>
         <script src="to-do.js"></script>
+        <script type="module" src="constacia.js"></script>
 
     </body>
 

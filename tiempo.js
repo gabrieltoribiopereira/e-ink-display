@@ -21,7 +21,7 @@ const getCurrentTimeDate = () => {
   month[8] = "SEP";
   month[9] = "OCT";
   month[10] = "NOV";
-  month[11] = "DEC";
+  month[11] = "DIC";
 
 
 
@@ -49,11 +49,11 @@ const getCurrentTimeDate = () => {
   var fullDate = `${currentDate} ${currentMonth} ${CurrentYear}`;
   document.getElementById("time").innerHTML = currentTime;
   document.getElementById("date").innerHTML = fullDate;
-  setTimeout(getCurrentTimeDate, 500);
+
 
 }
 getCurrentTimeDate()
-setInterval(getCurrentTimeDate, 500)
+setInterval(getCurrentTimeDate, 1000)
 
 async function getWeather() {
   const lat = CONFIG.LAT;
@@ -83,13 +83,3 @@ function weatherText(code) {
 
 getWeather();
 setInterval(getWeather, 600000); // actualiza cada 10 minutos
-
-function weatherIcon(code) {
-  if (code === 0) return "☀️";        // luego lo cambias por SVG
-  if (code <= 3) return "⛅";
-  if (code <= 48) return "🌫️";
-  if (code <= 67) return "🌧️";
-  if (code <= 77) return "❄️";
-  if (code <= 82) return "🌦️";
-  return "⛈️";
-}

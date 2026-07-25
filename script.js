@@ -15,13 +15,13 @@ const pantallas = {
        { emoji: "🏠", texto: "Start",  accion: () => mostrar("pantalla-inicio") },
        { emoji: "🔼", texto: "Up",     accion: () => moverSeleccion(-1) },
        { emoji: "🔽", texto: "Down",   accion: () => moverSeleccion(1) },
-       { emoji: "✔️", texto: "Done",   accion: () => marcarHecha() }
+       { emoji: "✔️", texto: "Done",   accion: () => marcarHecha() } /* falta definir */
      ],
   "pantalla-habitos": [
-    { emoji: "🏠", texto: "",  accion: () => mostrar("pantalla-inicio") },
-    { emoji: "➕", texto: "",  accion: () => console.log("nuevo hábito") },
-    { emoji: "📊", texto: "",  accion: () => console.log("racha") },
-    { emoji: "⚙️", texto: "",  accion: () => console.log("ajustes") }
+    { emoji: "🏠", texto: "Start",  accion: () => mostrar("pantalla-inicio") },
+    { emoji: "➕", texto: "Añadir",  accion: () => console.log("nuevo hábito") },
+    { emoji: "📊", texto: "Stats",  accion: () => console.log("racha") },
+    { emoji: "⚙️", texto: "Ajustes",  accion: () => console.log("ajustes") }
   ]
 };
 
@@ -31,16 +31,10 @@ document.querySelectorAll(".boton").forEach((boton, i) => {
   boton.addEventListener("click", () => pantallas[modo][i].accion());
 });
 
-function mostrar(id) {
-  modo = id;
-  if (id === "pantalla-calendario") calCargar();
-  document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("activa"));
-  document.getElementById(id).classList.add("activa");
-  render();
-}
+
 
 function render() {
-  const celdas = document.querySelectorAll(".barra span");
+  const celdas = document.querySelectorAll(".barra span")
   document.querySelectorAll(".boton").forEach((boton, i) => {
     const cfg = pantallas[modo][i];
     boton.textContent = cfg.emoji;
