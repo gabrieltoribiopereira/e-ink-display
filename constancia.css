@@ -1,0 +1,166 @@
+/* constancia.css — habit-tracker embebido en #pantalla-habitos */
+
+:root {
+  --linea: 2px solid #000;
+  --fina: 1px solid #000;
+}
+
+#pantalla-habitos {
+  width: 100%;
+  text-align: left;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+#pantalla-habitos * { box-sizing: border-box; }
+
+/* ---- estructura ---- */
+#pantalla-habitos .frame {
+
+  padding: 14px;
+}
+
+/* ---- cabecera ---- */
+#pantalla-habitos header {
+  border-bottom: var(--linea);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+#pantalla-habitos h1 {
+  font-size: clamp(40px, 7.5vw, 32px);
+  font-weight: bold;
+  letter-spacing: 0.7px;
+  margin: 0;
+  line-height: 1,5;
+  text-transform: uppercase;
+}
+
+#pantalla-habitos .meta {
+  font-size: 18px;
+  margin: 5px 0 0;
+  line-height: 1,5;
+}
+
+#pantalla-habitos .lbl {
+  font-size: 18px;
+  letter-spacing: 1.8px;
+  font-weight: 400;
+  margin: 0;
+  line-height: 1,5;
+  text-transform: uppercase;
+}
+
+/* ---- leyenda + escala ---- */
+#pantalla-habitos .leyenda {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+#pantalla-habitos .escala { display: flex; gap: 3px; }
+
+#pantalla-habitos .escala i {
+  width: 10px;
+  height: 10px;
+  box-shadow: inset 0 0 0 1px #000;
+  background: #fff;
+}
+
+#pantalla-habitos .escala i.n1 { background: #d4d4d4; }
+#pantalla-habitos .escala i.n2 { background: #8a8a8a; }
+#pantalla-habitos .escala i.n3 { background: #454545; }
+#pantalla-habitos .escala i.n4 { background: #000; box-shadow: none; }
+
+/* ---- heatmap ---- */
+#pantalla-habitos .heat {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 1.5px;
+}
+
+#pantalla-habitos .heat div {
+  aspect-ratio: 1;
+  box-shadow: inset 0 0 0 1px #000;
+  background: #fff;
+}
+
+#pantalla-habitos .heat div.n1 { background: #d4d4d4; }
+#pantalla-habitos .heat div.n2 { background: #8a8a8a; }
+#pantalla-habitos .heat div.n3 { background: #454545; }
+#pantalla-habitos .heat div.n4 { background: #000; box-shadow: none; }
+
+/* ---- separadores ---- */
+#pantalla-habitos .sep {
+  border: none;
+  border-top: var(--fina);
+  margin: 12px 0;
+}
+
+/* ---- racha ---- */
+#pantalla-habitos .racha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+#pantalla-habitos .racha-num {
+  font-size: 62px;
+  font-weight: bold;
+  line-height: 1,5;
+}
+
+#pantalla-habitos .racha-txt p {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1,5;
+}
+
+/* ---- barras semanales ---- */
+#pantalla-habitos #barras { margin-top: 8px; }
+
+#pantalla-habitos .barra-grupo { margin-bottom: 10px; }
+#pantalla-habitos .barra-grupo:last-child { margin-bottom: 0; }
+
+#pantalla-habitos .barra-nombre {
+  font-size: 16px;
+  margin: 0 0 4px;
+  line-height: 1,5;
+}
+
+#pantalla-habitos .barra-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#pantalla-habitos .barra {
+  flex: 1;
+  height: 13px;
+  border: var(--linea);
+  background: #fff;
+}
+
+#pantalla-habitos .barra-fill {
+  height: 100%;
+  background: #000;
+}
+
+#pantalla-habitos .barra-val {
+  font-size: 14px;
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ---- footer ---- */
+#pantalla-habitos .footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin: 0;
+}

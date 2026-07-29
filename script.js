@@ -19,9 +19,9 @@ const pantallas = {
      ],
   "pantalla-habitos": [
     { emoji: "🏠", texto: "Start",  accion: () => mostrar("pantalla-inicio") },
-    { emoji: "➕", texto: "Añadir",  accion: () => console.log("nuevo hábito") },
-    { emoji: "📊", texto: "Stats",  accion: () => console.log("racha") },
-    { emoji: "⚙️", texto: "Ajustes",  accion: () => console.log("ajustes") }
+    { emoji: "➕", texto: "Vista",  accion: () => console.log("nuevo hábito") },
+    { emoji: "📊", texto: "Bajar",  accion: () => console.log("racha") },
+    { emoji: "⚙️", texto: "Marcar",  accion: () => console.log("ajustes") }
   ]
 };
 
@@ -42,10 +42,16 @@ function render() {
   });
 }
 
-mostrar("pantalla-inicio");
+// Al cargar, restaurar la última pantalla guardada en el servidor
+fetch("/pantalla")
+  .then(r => r.text())
+  .then(id => mostrar(document.getElementById(id) ? id : "pantalla-inicio"))
+  .catch(() => mostrar("pantalla-inicio"));
 
 function mostrar(id) {
   modo = id;
+  // Guardar en el servidor la pantalla activa (para que la captura la siga)
+  fetch("/pantalla", { method: "POST", body: id }).catch(() => {});
   if (id === "pantalla-calendario") calCargar();
   if (id === "pantalla-todo") cargarTareas();
   document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("activa"));

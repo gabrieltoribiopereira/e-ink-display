@@ -23,7 +23,11 @@ body {
   border-bottom: none;
   padding: 14px;
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
-  min-height: calc(100dvh - 8px);
+  display: flex;
+  min-height: 800px;
+  max-height: 800px;
+  flex-direction: column;
+
 }
 
 /* ---------- HEADER ---------- */
@@ -237,6 +241,7 @@ h1 {
   border: none;
   border-top: var(--fina);
   margin: 12px 0;
+
 }
 
 /* ---------- RACHA ---------- */

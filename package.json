@@ -1,0 +1,24 @@
+{
+  "name": "e-ink",
+  "version": "1.0.0",
+  "description": "",
+  "main": "calendar.js",
+  "scripts": {
+    "start": "node server.js",
+    "captura": "node captura.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabrieltoribiopereira/e-ink-display.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gabrieltoribiopereira/e-ink-display/issues"
+  },
+  "homepage": "https://github.com/gabrieltoribiopereira/e-ink-display#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "@types/node": "^26.1.2"
+  }
+}

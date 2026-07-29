@@ -329,51 +329,35 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) comprobarDia();
 });
 
-/* ---------- EVENTOS ---------- */
-const input = document.getElementById('nuevo');
-document.getElementById('add').onclick = () => {
-  crearHabito(input.value);
-  input.value = '';
-};
-input.onkeydown = e => {
-  if (e.key === 'Enter') {
-    crearHabito(input.value);
-    input.value = '';
-  }
-};
-document.querySelectorAll('.nav-btn').forEach(b => {
-  b.onclick = () => cambiarVista(b.dataset.vista);
-});
-/* ---------- INICIO ---------- */
-cambiarVista('habitos');
 
 
 
 
 
 
-/* ---------- EVENTOS E INICIO (Modificado para exportar) ---------- */
 
-export function iniciarHabitos() {
-  // Buscamos los elementos AHORA, cuando ya existen en la página principal
+//* ---------- EVENTOS E INICIO (exportado) ---------- */
+export function iniciarHabitos(vista = 'constancia') {
   const input = document.getElementById('nuevo');
 
-  document.getElementById('add').onclick = () => {
-    crearHabito(input.value);
-    input.value = '';
-  };
-
-  input.onkeydown = e => {
-    if (e.key === 'Enter') {
+  // El input/botón "Añadir" están en vista-habitos (oculta, pero existen).
+  // Guardamos por si acaso no estuvieran.
+  if (input) {
+    document.getElementById('add').onclick = () => {
       crearHabito(input.value);
       input.value = '';
-    }
-  };
+    };
+    input.onkeydown = e => {
+      if (e.key === 'Enter') {
+        crearHabito(input.value);
+        input.value = '';
+      }
+    };
+  }
 
   document.querySelectorAll('.nav-btn').forEach(b => {
     b.onclick = () => cambiarVista(b.dataset.vista);
   });
 
-  /* ---------- INICIO ---------- */
-  cambiarVista(vista);
+  cambiarVista(vista);   // arranca directamente en la vista que le pases
 }
