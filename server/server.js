@@ -8,7 +8,7 @@ const util = require('util')
 const execFileP=util.promisify(execFile)
 
 const DIR = __dirname
-const PORT = 8080
+const PORT = 8002
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
