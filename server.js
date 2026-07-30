@@ -3,8 +3,12 @@ const fs = require('fs')
 const path = require('path')
 const { chromium } = require('playwright')
 
+const { execFile } = require('child_process')
+const util = require('util')
+const execFileP=util.promisify(execFile)
+
 const DIR = __dirname
-const PORT = 3000
+const PORT = 8080
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -42,6 +46,20 @@ async function capturar() {
     return await el.screenshot({ type: 'png' })
 }
 
+async function guardarYConvertir(imgBuffer, nombre = 'captura') {
+  const pngPath = path.join(DIR, `${nombre}.png`)
+  const hPath = path.join(DIR, `${nombre}.h`)
+  fs.writeFileSync(pngPath, imgBuffer)          // 1) guarda la imagen
+      await execFileP('python3', [                  // 2) ejecuta el .py
+          path.join(process.env.HOME, 'img2carray_4gray.py'),
+          pngPath,
+          '--width', '800', '--height', '480',
+          '--name', nombre,
+          '--out', hPath,
+      ])
+      console.log(`Convertido ${nombre}.png -> ${nombre}.h`)
+}
+
 const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`)
 
@@ -56,6 +74,7 @@ const server = http.createServer((req, res) => {
                 await page.locator('.boton').nth(i).click()
                 await page.waitForTimeout(300)
                 const img = await capturar()
+                await guardarYConvertir(img, `boton${i + 1}`)   // <-- convierte tras generar
                 res.setHeader('Content-Type', 'image/png')
                 res.end(img)
             } catch (e) {
@@ -70,7 +89,11 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/captura.png' && req.method === 'GET') {
         if (!page) { res.statusCode = 503; return res.end('Navegador no listo') }
         capturar()
-            .then(img => { res.setHeader('Content-Type', 'image/png'); res.end(img) })
+            .then(async img => {
+                await guardarYConvertir(img, 'captura')   // <-- guarda y convierte
+                res.setHeader('Content-Type', 'image/png')
+                res.end(img)
+            })
             .catch(e => { res.statusCode = 500; res.end('Error: ' + e.message) })
         return
     }
