@@ -1,5 +1,9 @@
 let tareasActuales = [];
 let seleccion = 0;
+let seleccionPendiente = null;   // la que llega del server al restaurar estado
+
+// La llama script.js al arrancar, antes de que se pinte nada.
+function todoRestaurar(i) { seleccionPendiente = i; }
 
 async function cargarTareas() {
   const cont = document.getElementById("lista-tareas");
@@ -7,7 +11,13 @@ async function cargarTareas() {
     const res = await fetch("tareas.json?t=" + Date.now());
     const datos = await res.json();
     tareasActuales = datos.flatMap(l => l.tareas);
-    seleccion = 0;
+    // Se acota a la lista actual: la tarea guardada pudo desaparecer de Google
+    // Tasks desde la ultima vez, y quedaria una seleccion apuntando a la nada.
+    const guardada = seleccionPendiente ?? seleccion;
+    seleccion = tareasActuales.length
+      ? Math.min(guardada, tareasActuales.length - 1)
+      : 0;
+    seleccionPendiente = null;
     pintarTareas();
   } catch (e) {
     cont.textContent = "Error al cargar tareas";
@@ -48,5 +58,15 @@ function pintarTareas() {
 function moverSeleccion(delta) {
   if (!tareasActuales.length) return;
   seleccion = (seleccion + delta + tareasActuales.length) % tareasActuales.length;
+  publicarEstado({ seleccion });
+  pintarTareas();
+}
+
+// Solo marca en pantalla: gtasks.py usa el scope de solo lectura, asi que el
+// cambio se pierde al recargar tareas.json.
+function marcarHecha() {
+  const t = tareasActuales[seleccion];
+  if (!t) return;
+  t.estado = t.estado === "completed" ? "needsAction" : "completed";
   pintarTareas();
 }

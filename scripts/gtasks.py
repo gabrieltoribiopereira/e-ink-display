@@ -1,3 +1,4 @@
+import argparse
 import os.path
 import json
 from datetime import date
@@ -9,18 +10,29 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/tasks.readonly"]
 
+RAIZ   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOKEN  = os.path.join(RAIZ, "secrets", "token.json")
+CREDS  = os.path.join(RAIZ, "secrets", "credentials.json")
+SALIDA = os.path.join(RAIZ, "data", "tareas.json")
 
-def get_service():
+def get_service(interactivo=True):
     creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if os.path.exists(TOKEN):
+        creds = Credentials.from_authorized_user_file(TOKEN, SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+        elif interactivo:
+            flow = InstalledAppFlow.from_client_secrets_file(CREDS, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as f:
+        else:
+            # Sin esto el server se quedaria colgado para siempre esperando a
+            # que alguien autorice en un navegador que nadie esta mirando.
+            raise SystemExit(
+                "sin token valido y --auto no puede abrir el navegador; "
+                "ejecuta una vez a mano: .venv/bin/python scripts/gtasks.py"
+            )
+        with open(TOKEN, "w") as f:
             f.write(creds.to_json())
     return build("tasks", "v1", credentials=creds)
 
@@ -67,20 +79,27 @@ def obtener_tareas(service, debug=False):
 
 
 if __name__ == "__main__":
-    service = get_service()
-    datos = obtener_tareas(service, debug=True)
+    p = argparse.ArgumentParser(description="Vuelca las tareas de Google Tasks a data/tareas.json")
+    p.add_argument("--auto", action="store_true",
+                   help="modo desatendido (lo usa el server): no abre el navegador "
+                        "para autorizar ni vuelca el JSON crudo por pantalla")
+    args = p.parse_args()
 
-    for lista in datos:
-        print(f"\n== {lista['lista']} ==")
-        for t in lista["tareas"]:
-            check = "[x]" if t["estado"] == "completed" else "[ ]"
-            sangria = "   " if t["padre"] else ""
-            print(f"{sangria} {check} {t['titulo']}")
-            if t["notas"]:
-                print(f"{sangria}       {t['notas']}")
+    service = get_service(interactivo=not args.auto)
+    datos = obtener_tareas(service, debug=not args.auto)
 
-    with open("tareas.json", "w", encoding="utf-8") as f:
+    if not args.auto:
+        for lista in datos:
+            print(f"\n== {lista['lista']} ==")
+            for t in lista["tareas"]:
+                check = "[x]" if t["estado"] == "completed" else "[ ]"
+                sangria = "   " if t["padre"] else ""
+                print(f"{sangria} {check} {t['titulo']}")
+                if t["notas"]:
+                    print(f"{sangria}       {t['notas']}")
+
+    with open(SALIDA, "w", encoding="utf-8") as f:
         json.dump(datos, f, ensure_ascii=False, indent=2)
 
     total = sum(len(x["tareas"]) for x in datos)
-    print(f"\n{total} tareas de hoy guardadas en tareas.json")
+    print(f"{total} tareas guardadas en {SALIDA}")

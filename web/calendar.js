@@ -43,9 +43,32 @@ function calEnviar(msg) {
     .contentWindow.postMessage({ owc: true, ...msg }, "*");
 }
 
-function calScroll(px) { calEnviar({ accion: "scroll", px }); }
+// El iframe desplaza en relativo (scrollTop += px), asi que aqui se lleva la
+// cuenta acumulada: es lo que permite reproducir la posicion en un navegador
+// nuevo, mandando el total de una vez sobre un iframe recien cargado.
+let calScrollTotal = 0;
+
+function calScroll(px) {
+  calScrollTotal = Math.max(0, calScrollTotal + px);
+  calEnviar({ accion: "scroll", px });
+  publicarEstado({ scroll: calScrollTotal });
+}
 
 function calToggleVista() {
   calVista = calVista === "day" ? "week" : "day";
   calEnviar({ accion: "vista", vista: calVista });
+  publicarEstado({ vista: calVista });
+}
+
+// Recupera vista y scroll guardados. Lo llama script.js al arrancar; los
+// mensajes se encolan solos si el iframe todavia no ha cargado.
+function calRestaurar({ vista, scroll }) {
+  if (vista && vista !== calVista) {
+    calVista = vista;
+    calEnviar({ accion: "vista", vista });
+  }
+  if (scroll) {
+    calScrollTotal = scroll;
+    calEnviar({ accion: "scroll", px: scroll });
+  }
 }

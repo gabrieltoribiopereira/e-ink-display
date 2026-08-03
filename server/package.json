@@ -2,10 +2,10 @@
   "name": "e-ink",
   "version": "1.0.0",
   "description": "",
-  "main": "calendar.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "captura": "node captura.js"
+    "web": "node server.js --solo-web"
   },
   "repository": {
     "type": "git",
@@ -18,7 +18,9 @@
   },
   "homepage": "https://github.com/gabrieltoribiopereira/e-ink-display#readme",
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.2"
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
   }
 }

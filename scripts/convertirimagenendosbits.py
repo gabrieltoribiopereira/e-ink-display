@@ -9,19 +9,20 @@ MSB-first). Formato compatible con Waveshare 7.5" e-Paper (EPD_7IN5_V2_4Gray).
 Uso:
     python3 convertirimagenendosbits.py
 """
+import argparse
 import os
 import re
 from PIL import Image
 
 # ------------------------- CONFIGURACION -------------------------
 # Carpeta a procesar: por defecto la carpeta donde esta este script.
-FOLDER = os.path.dirname(os.path.abspath(__file__))
+FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output")
 
 # Reescalar todas las imagenes a este tamano. Pon None, None para conservar
 # el tamano original de cada imagen.
 TARGET_WIDTH = None      # ej. 800
 TARGET_HEIGHT = None     # ej. 480
-
+ROTATE = 90
 INVERT = False           # True si negro/blanco salen al reves en el display
 LSB_FIRST = False        # True si la imagen sale espejada/desordenada
 # -----------------------------------------------------------------
@@ -41,8 +42,11 @@ def sanitize(filename: str) -> str:
     return ident or "img"
 
 
-def convert(path):
+def convert(path, rotate=None):
     img = Image.open(path).convert("L")
+    r = ROTATE if rotate is None else rotate
+    if r:
+        img = img.rotate(r, expand=True)     # 480x800 -> 800x480
     if TARGET_WIDTH or TARGET_HEIGHT:
         w = TARGET_WIDTH or img.width
         h = TARGET_HEIGHT or img.height
@@ -114,5 +118,39 @@ def main():
     print("\nListo.")
 
 
+def convertir_una(ruta, width=None, height=None, name=None, out=None, bin_out=None):
+    global TARGET_WIDTH, TARGET_HEIGHT
+    TARGET_WIDTH, TARGET_HEIGHT = width, height
+    ident = name or sanitize(ruta)
+    W, H, data = convert(ruta)
+
+    # El .bin es lo que descarga el ESP32: los mismos bytes que van dentro del
+    # array de C, pero sin el envoltorio de texto. El .h solo sirve para
+    # compilar imagenes fijas dentro del firmware.
+    if bin_out:
+        with open(bin_out, "wb") as f:
+            f.write(data)
+        print(f"  {os.path.basename(ruta)}  ->  {os.path.basename(bin_out)}   "
+              f"({W}x{H}, {len(data)} bytes)")
+
+    if out or not bin_out:
+        out_path = out or os.path.splitext(ruta)[0] + ".h"
+        write_header(ident, W, H, data, out_path)
+        print(f"  {os.path.basename(ruta)}  ->  {ident}.h   ({W}x{H}, {len(data)} bytes)")
+
+
 if __name__ == "__main__":
-    main()
+    p = argparse.ArgumentParser(description="PNG -> .h en 4 grises (2 bpp)")
+    p.add_argument("imagen", nargs="?", help="imagen suelta; sin esto convierte toda la carpeta")
+    p.add_argument("--width", type=int)
+    p.add_argument("--height", type=int)
+    p.add_argument("--name", help="identificador C del array")
+    p.add_argument("--out", help="ruta del .h de salida")
+    p.add_argument("--bin", dest="bin_out",
+                   help="ruta del .bin crudo (lo que descarga el ESP32)")
+    a = p.parse_args()
+
+    if a.imagen:
+        convertir_una(a.imagen, a.width, a.height, a.name, a.out, a.bin_out)
+    else:
+        main()

@@ -62,7 +62,6 @@ async function getWeather() {
 
   const res = await fetch(url);
   const data = await res.json();
-  console.log(data);
 
   const temp = Math.round(data.current.temperature_2m);
   const code = data.current.weather_code;

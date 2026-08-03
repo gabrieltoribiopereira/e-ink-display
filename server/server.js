@@ -1,15 +1,22 @@
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
 const { chromium } = require('playwright')
 
 const { execFile } = require('child_process')
 const util = require('util')
 const execFileP=util.promisify(execFile)
 
-const DIR = __dirname
+const WEB = path.join(__dirname, '..', 'web')   // estáticos
+const OUT = path.join(__dirname, '..', 'output') // capturas
 const PORT = 8002
-
+const SECRETS = path.join(__dirname, '..', 'secrets')
+const DATA    = path.join(__dirname, '..', 'data')
+const EXTRA = {
+    '/config.js':   path.join(SECRETS, 'config.js'),
+    '/tareas.json': path.join(DATA, 'tareas.json'),
+}
 const MIME = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
@@ -23,18 +30,105 @@ const MIME = {
 
 let page = null   // pagina persistente: el navegador se abre UNA sola vez
 
+// Estado completo del display, no solo que pantalla se ve. Hace falta guardar
+// tambien el detalle interno (vista del calendario, scroll, tarea seleccionada)
+// porque en la nube cada renderizado arranca un navegador nuevo: sin esto el
+// calendario saldria SIEMPRE en vista dia y el boton de cambiar vista no
+// serviria de nada.
+let estado = {
+    pantalla: 'pantalla-inicio',
+    vista: 'day',      // calendario: day | week
+    scroll: 0,         // calendario: desplazamiento acumulado en px
+    seleccion: 0,      // to-do: indice de la tarea marcada
+}
+
+// --- Sincronizacion de Google Tasks -------------------------------------
+// gtasks.py necesita las librerias de Google, que estan en el venv y NO en el
+// python del sistema (al reves que Pillow, que usa el conversor). Por eso aqui
+// va la ruta explicita al interprete del venv.
+const VENV_PY = path.join(__dirname, '..', '.venv', 'bin', 'python')
+const GTASKS = path.join(__dirname, '..', 'scripts', 'gtasks.py')
+const TOKEN_GOOGLE = path.join(SECRETS, 'token.json')
+const TAREAS_TTL = 10 * 60 * 1000   // no llamar a la API de Google mas de una vez cada 10 min
+let ultimaSync = 0
+
+async function actualizarTareas({ forzar = false } = {}) {
+    if (!forzar && Date.now() - ultimaSync < TAREAS_TTL) return
+    if (!fs.existsSync(TOKEN_GOOGLE)) {
+        console.warn('AVISO: falta secrets/token.json, las tareas no se sincronizan.')
+        console.warn('       Autoriza una vez:  .venv/bin/python scripts/gtasks.py')
+        return
+    }
+    if (!fs.existsSync(VENV_PY)) {
+        console.warn(`AVISO: no existe ${VENV_PY}, las tareas no se sincronizan.`)
+        return
+    }
+    ultimaSync = Date.now()   // se marca aunque falle, para no reintentar en cada captura
+    try {
+        // --auto evita que se abra el navegador de OAuth y deje el server colgado.
+        const { stdout } = await execFileP(VENV_PY, [GTASKS, '--auto'], { timeout: 30000 })
+        console.log('Tareas sincronizadas:', stdout.trim())
+    } catch (e) {
+        console.warn('No se pudieron sincronizar las tareas:',
+            (e.stderr || e.message).trim().split('\n').pop())
+    }
+}
+
 async function initBrowser() {
     const env = { ...process.env }
     delete env.LD_LIBRARY_PATH        // evita la glib vieja que inyecta Zed (Flatpak)
     const browser = await chromium.launch({ env })
     page = await browser.newPage()
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' })
+    // ?display=1 marca esta pestaña como la del e-ink: es la unica autorizada a
+    // leer y escribir /pantalla, para que navegar por la web no mueva el display.
+    await page.goto(`http://localhost:${PORT}/?display=1`, { waitUntil: 'networkidle' })
+    await iniciarSesion()
     console.log('Navegador listo')
 }
 
+// El navegador del server es una instancia limpia sin sesion: entra solo con
+// una cuenta dedicada para que el dashboard sea visible y se pueda capturar.
+async function iniciarSesion() {
+    let cuenta
+    try {
+        cuenta = JSON.parse(fs.readFileSync(path.join(SECRETS, 'display.json'), 'utf8'))
+    } catch {
+        console.warn('AVISO: falta secrets/display.json, no se inicia sesion.')
+        console.warn('       Si la web tiene el login activo, las capturas fallaran.')
+        return
+    }
+    // Login y dashboard arrancan ocultos hasta que Supabase resuelve la sesion.
+    // Hay que esperar a data-auth antes de mirar nada, o se confunde "todavia
+    // no se sabe" con "ya hay sesion".
+    await page.waitForSelector('body[data-auth]', { timeout: 15000 })
+    if (await page.getAttribute('body', 'data-auth') === 'in') return   // ya habia sesion
+    await page.fill('#email', cuenta.email)
+    await page.fill('#password', cuenta.password)
+    await page.click('#btn-login')
+    try {
+        await page.locator('#dashboard').waitFor({ state: 'visible', timeout: 15000 })
+        console.log('Sesion iniciada como', cuenta.email)
+    } catch {
+        const msg = await page.locator('#login-error').textContent()
+        throw new Error('No se pudo iniciar sesion: ' + (msg || 'timeout'))
+    }
+}
+
 async function capturar() {
-    // Si estamos en el calendario, esperar a que el iframe pinte la cuadricula
+    if (!(await page.locator('#dashboard').isVisible())) {
+        throw new Error('Dashboard oculto: el navegador del server no tiene sesion. '
+            + 'Crea secrets/display.json con {"email": "...", "password": "..."}')
+    }
     const modo = await page.evaluate(() => document.querySelector('.pantalla.activa')?.id)
+    // Si vamos a capturar el To-Do, refrescar antes desde Google Tasks. No basta
+    // con reescribir tareas.json: la pagina ya lo leyo, hay que pedirle que lo
+    // vuelva a cargar.
+    if (modo === 'pantalla-todo') {
+        await actualizarTareas()
+        await page.evaluate(() => cargarTareas())
+        await page.waitForTimeout(200)
+    }
+    // Si estamos en el calendario, esperar a que el iframe pinte la cuadricula
     if (modo === 'pantalla-calendario') {
         try {
             await page.frameLocator('#pantalla-calendario')
@@ -47,11 +141,11 @@ async function capturar() {
 }
 
 async function guardarYConvertir(imgBuffer, nombre = 'captura') {
-  const pngPath = path.join(DIR, `${nombre}.png`)
-  const hPath = path.join(DIR, `${nombre}.h`)
+  const pngPath = path.join(OUT, `${nombre}.png`)
+  const hPath   = path.join(OUT, `${nombre}.h`)
   fs.writeFileSync(pngPath, imgBuffer)          // 1) guarda la imagen
       await execFileP('python3', [                  // 2) ejecuta el .py
-          path.join(process.env.HOME, 'img2carray_4gray.py'),
+          path.join(__dirname, '..', 'scripts', 'convertirimagenendosbits.py'),
           pngPath,
           '--width', '800', '--height', '480',
           '--name', nombre,
@@ -60,8 +154,111 @@ async function guardarYConvertir(imgBuffer, nombre = 'captura') {
       console.log(`Convertido ${nombre}.png -> ${nombre}.h`)
 }
 
+// --- API del ESP32 -------------------------------------------------------
+const FRAMES = path.join(OUT, 'frames')
+const CONVERSOR = path.join(__dirname, '..', 'scripts', 'convertirimagenendosbits.py')
+const RUTA_TOKEN = path.join(SECRETS, 'device-token.txt')
+const DEVICE_TOKEN = (process.env.DEVICE_TOKEN
+    || (fs.existsSync(RUTA_TOKEN) ? fs.readFileSync(RUTA_TOKEN, 'utf8') : '')).trim()
+
+// Los nombres de pantalla vienen de la URL, asi que se comparan contra una
+// lista cerrada: sin esto un `../` permitiria leer cualquier archivo del disco.
+const PANTALLAS = ['inicio', 'calendario', 'todo', 'habitos']
+
+function autorizado(req) {
+    if (!DEVICE_TOKEN) return true      // sin token configurado la API queda abierta (solo local)
+    const enviado = (req.headers.authorization || '').replace(/^Bearer /, '')
+    const a = Buffer.from(enviado)
+    const b = Buffer.from(DEVICE_TOKEN)
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
+// Genera el frame de una pantalla: .png para mirarlo, .bin para el ESP32 y
+// .h por si quieres compilarlo dentro del firmware.
+async function guardarFrame(imgBuffer, pantalla) {
+    fs.mkdirSync(FRAMES, { recursive: true })
+    const png = path.join(FRAMES, `${pantalla}.png`)
+    const bin = path.join(FRAMES, `${pantalla}.bin`)
+    const h = path.join(FRAMES, `${pantalla}.h`)
+    fs.writeFileSync(png, imgBuffer)
+    await execFileP('python3', [CONVERSOR, png,
+        '--width', '800', '--height', '480', '--name', pantalla, '--out', h, '--bin', bin])
+    const datos = fs.readFileSync(bin)
+    return { pantalla, bytes: datos.length, hash: crypto.createHash('sha256').update(datos).digest('hex') }
+}
+
+const json = (res, code, obj) => {
+    res.statusCode = code
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify(obj))
+}
+
 const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`)
+
+    if (url.pathname.startsWith('/api/')) {
+        if (!autorizado(req)) return json(res, 401, { error: 'token invalido' })
+
+        // Pulsar un boton y devolver los datos del frame resultante
+        if (url.pathname === '/api/boton' && req.method === 'POST') {
+            let body = ''
+            req.on('data', c => (body += c))
+            req.on('end', async () => {
+                if (!page) return json(res, 503, { error: 'navegador no listo' })
+                let n
+                try { n = JSON.parse(body).boton } catch { n = parseInt(body.trim(), 10) }
+                if (!(n >= 1 && n <= 4)) return json(res, 400, { error: 'boton debe ser 1..4' })
+                try {
+                    await page.locator('.boton').nth(n - 1).click()
+                    await page.waitForTimeout(300)
+                    const img = await capturar()
+                    const activa = await page.evaluate(() => document.querySelector('.pantalla.activa')?.id)
+                    res.setHeader('Cache-Control', 'no-store')
+                    json(res, 200, await guardarFrame(img, activa.replace('pantalla-', '')))
+                } catch (e) {
+                    json(res, 500, { error: e.message })
+                }
+            })
+            return
+        }
+
+        // Que pantalla se ve ahora y con que hash: el ESP32 lo consulta para
+        // decidir si merece la pena descargar. Es lo que le ahorra bateria.
+        if (url.pathname === '/api/estado' && req.method === 'GET') {
+            const pantalla = estado.pantalla.replace('pantalla-', '')
+            const bin = path.join(FRAMES, `${pantalla}.bin`)
+            if (!fs.existsSync(bin)) return json(res, 404, { error: 'frame no generado todavia', pantalla })
+            const datos = fs.readFileSync(bin)
+            return json(res, 200, {
+                pantalla, bytes: datos.length,
+                hash: crypto.createHash('sha256').update(datos).digest('hex'),
+            })
+        }
+
+        // Descarga del frame: .bin son los 96000 bytes crudos, .h el array de C
+        const m = url.pathname.match(/^\/api\/frame\/([a-z]+)\.(bin|h)$/)
+        if (m && req.method === 'GET') {
+            const [, pantalla, ext] = m
+            if (!PANTALLAS.includes(pantalla)) return json(res, 404, { error: 'pantalla desconocida' })
+            const archivo = path.join(FRAMES, `${pantalla}.${ext}`)
+            if (!fs.existsSync(archivo)) return json(res, 404, { error: 'frame no generado todavia' })
+            const datos = fs.readFileSync(archivo)
+            const etag = '"' + crypto.createHash('sha256').update(datos).digest('hex').slice(0, 32) + '"'
+            // Si el ESP32 ya tiene este frame, 304 y no descarga ni refresca la
+            // pantalla: un refresco completo del e-ink son ~4 s y mucho consumo.
+            if (req.headers['if-none-match'] === etag) {
+                res.statusCode = 304
+                res.setHeader('ETag', etag)
+                return res.end()
+            }
+            res.setHeader('ETag', etag)
+            res.setHeader('Content-Type', ext === 'bin' ? 'application/octet-stream' : 'text/plain; charset=utf-8')
+            res.setHeader('Content-Length', datos.length)
+            return res.end(datos)
+        }
+
+        return json(res, 404, { error: 'ruta no encontrada' })
+    }
 
     // Pulsar un boton (1..4) y devolver la NUEVA captura
     if (url.pathname === '/boton' && req.method === 'POST') {
@@ -98,11 +295,33 @@ const server = http.createServer((req, res) => {
         return
     }
 
+    // Estado del display: la web lo guarda aqui para restaurarlo al recargar
+    if (url.pathname === '/pantalla') {
+        if (req.method === 'POST') {
+            let body = ''
+            req.on('data', c => (body += c))
+            req.on('end', () => {
+                try {
+                    Object.assign(estado, JSON.parse(body))
+                } catch {
+                    estado.pantalla = body.trim()   // formato viejo: solo el id
+                }
+                res.end('ok')
+            })
+            return
+        }
+        return json(res, 200, estado)
+    }
+
     // Archivos estaticos
     let rel = decodeURIComponent(url.pathname)
     if (rel.endsWith('/')) rel += 'index.html'
-    const file = path.join(DIR, path.normalize(rel))
-    if (!file.startsWith(DIR)) { res.statusCode = 403; return res.end('Prohibido') }
+
+    let file = EXTRA[rel]
+    if (!file) {
+        file = path.join(WEB, path.normalize(rel))
+        if (!file.startsWith(WEB)) { res.statusCode = 403; return res.end('Prohibido') }
+    }
     fs.readFile(file, (err, data) => {
         if (err) { res.statusCode = 404; return res.end('No encontrado') }
         res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream')
@@ -110,7 +329,17 @@ const server = http.createServer((req, res) => {
     })
 })
 
+// --solo-web: sirve la web y nada mas. Para desarrollar sin esperar a que
+// arranque Chromium; /boton y /captura.png quedan fuera de servicio.
+const SOLO_WEB = process.argv.includes('--solo-web')
+
 server.listen(PORT, async () => {
     console.log(`Servidor en http://localhost:${PORT}`)
+    if (SOLO_WEB) {
+        console.log('Modo solo-web: sin navegador. /boton y /captura.png no funcionan.')
+        return
+    }
     await initBrowser()
+    await actualizarTareas({ forzar: true })
+    setInterval(() => actualizarTareas({ forzar: true }), TAREAS_TTL).unref()
 })

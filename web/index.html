@@ -11,11 +11,33 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="constancia.css">
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     </head>
 
 
     <body >
 
+        <!-- pantalla login -->
+        <div id="login" hidden>
+            <form id="login-form">
+                <h1>e-ink</h1>
+                      <p class="sub">Panel de control</p>
+
+                      <label for="email">Email</label>
+                      <input id="email" type="email" placeholder="nombre@correo.com"
+                             autocomplete="username" required />
+
+                      <label for="password">Contraseña</label>
+                      <input id="password" type="password" placeholder="••••••••"
+                             autocomplete="current-password" required />
+
+                      <button id="btn-login" type="submit">Entrar</button>
+                      <p id="login-error" role="alert"></p>
+            </form>
+        </div>
+
+
+        <div id="dashboard" hidden>
         <div class="contenedor">
             <!-- Hora y clima -->
             <div class="pantalla" style="text-align: center;" id="pantalla-inicio">
@@ -62,8 +84,13 @@
             <button data-id="b3" class="boton"></button>
             <button data-id="b4" class="boton"></button>
         </div>
+        <!-- fuera de .contenedor: el server captura solo .contenedor, asi que
+             este boton no aparece en el e-ink -->
+        <button id="btn-logout" type="button">Cerrar sesión</button>
+        </div>
 
         <script src="config.js"></script>
+        <script src="auth.js"></script>
         <script src="calendar.js"></script>
         <script src="tiempo.js"></script>
         <script src="script.js"></script>

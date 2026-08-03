@@ -5,6 +5,13 @@ token.json
 *.pickle
 tareas.json
 config.js
+secrets/
+*.log
+
+# Capturas y frames: se regeneran solos en cada ejecucion. Versionarlos mete
+# 600 KB de diff por pantalla cada vez, y ademas contienen datos privados
+# (calendario y tareas) en un repo publico.
+output/
 
 # Playwright
 node_modules/
@@ -13,3 +20,6 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Memoria simulada del ESP32
+esp32-sim/

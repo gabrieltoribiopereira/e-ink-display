@@ -1,0 +1,111 @@
+name: Generar frames del e-ink
+
+# SOLO schedule y manual. Nada de pull_request: un PR desde un fork podria
+# modificar este workflow y robar SUPABASE_SERVICE_ROLE, que da acceso total
+# a la base de datos. El repo es publico, asi que esto no es teorico.
+on:
+  schedule:
+    - cron: '*/20 * * * *'   # cada 20 min (GitHub suele retrasarlo, es normal)
+  workflow_dispatch:
+
+# Si una ejecucion se solapa con la anterior, cancela la vieja: subir dos veces
+# los mismos frames a la vez dejaria el manifiesto descuadrado.
+concurrency:
+  group: frames
+  cancel-in-progress: true
+
+jobs:
+  frames:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias de Node
+        working-directory: ./server
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: ./server
+        run: npx playwright install --with-deps chromium
+
+      # En CI todo va al mismo Python: no hace falta el venv que en local separa
+      # las librerias de Google (gtasks) de Pillow (el conversor).
+      - name: Instalar dependencias de Python
+        run: pip install -r scripts/requirements.txt
+
+      # La web espera estos archivos donde el server los sirve. Se escriben con
+      # printf '%s' para no meter saltos de linea de mas en los JSON.
+      - name: Reconstruir secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CAL_ICS: ${{ secrets.CAL_ICS }}
+          DISPLAY_EMAIL: ${{ secrets.DISPLAY_EMAIL }}
+          DISPLAY_PASSWORD: ${{ secrets.DISPLAY_PASSWORD }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GOOGLE_TOKEN: ${{ secrets.GOOGLE_TOKEN }}
+        run: |
+          mkdir -p secrets data
+          cat > secrets/config.js <<EOF
+          const CONFIG = {
+            ICS: "$CAL_ICS",
+            LAT: 41.6,
+            LON: 2.3,
+            SUPABASE_URL: "$SUPABASE_URL",
+            SUPABASE_ANON_KEY: "$SUPABASE_ANON_KEY",
+          };
+          EOF
+          printf '%s' "$GOOGLE_CREDENTIALS" > secrets/credentials.json
+          printf '%s' "$GOOGLE_TOKEN"       > secrets/token.json
+          printf '{"email":"%s","password":"%s"}' "$DISPLAY_EMAIL" "$DISPLAY_PASSWORD" > secrets/display.json
+
+      # Si Google falla no se aborta: mas vale un frame con las tareas de hace
+      # 20 min que dejar el display sin actualizar nada.
+      - name: Sincronizar Google Tasks
+        continue-on-error: true
+        run: python3 scripts/gtasks.py --auto
+
+      # --solo-web no abre Chromium: lo abre generar-frames.js. Asi hay UN solo
+      # navegador en el runner en vez de dos.
+      - name: Arrancar el server
+        working-directory: ./server
+        run: |
+          node server.js --solo-web &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8002/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "el server no respondio en 30 s"; exit 1
+
+      - name: Renderizar las 4 pantallas
+        env:
+          NODE_PATH: ./server/node_modules
+          DISPLAY_EMAIL: ${{ secrets.DISPLAY_EMAIL }}
+          DISPLAY_PASSWORD: ${{ secrets.DISPLAY_PASSWORD }}
+        run: node scripts/generar-frames.js
+
+      - name: Subir a Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+        run: node scripts/subir-frames.js
+
+      # Para poder mirar que se genero cuando algo salga raro. Solo las PNG:
+      # los .bin no se ven y ocupan 96 KB cada uno.
+      - name: Guardar las capturas por si hay que depurar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: output/frames/*.png
+          retention-days: 7
