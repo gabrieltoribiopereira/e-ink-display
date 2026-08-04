@@ -20,6 +20,7 @@ hagan falta, para que la traduccion a MicroPython o C++ sea directa:
 import hashlib
 import json
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -126,6 +127,29 @@ def descargar(pantalla, hash_esperado):
     return destino
 
 
+def con_reintentos(hacer, intentos=3, espera=3):
+    """
+    Reintenta ante fallos temporales.
+
+    Imprescindible en el ESP32: la Edge Function se apaga cuando no se usa y la
+    primera peticion tras un rato puede devolver 502 mientras arranca. Como el
+    dispositivo despierta cada 20 min, se va a encontrar ese arranque en frio
+    casi siempre. Sin esto, se dormiria dejando la pantalla desactualizada.
+    """
+    for intento in range(1, intentos + 1):
+        try:
+            r = hacer()
+            if r.status_code < 500:
+                return r          # 4xx es culpa nuestra: reintentar no arregla nada
+            motivo = f"HTTP {r.status_code}"
+        except requests.exceptions.RequestException as e:
+            motivo = type(e).__name__
+        if intento < intentos:
+            print(f"  {motivo}, reintento {intento}/{intentos - 1} en {espera}s")
+            time.sleep(espera)
+    salir(f"{intentos} intentos fallidos ({motivo})")
+
+
 def url_nube():
     """Endpoint de la Edge Function, sacado de secrets/config.js."""
     f = RAIZ / "secrets" / "config.js"
@@ -148,10 +172,7 @@ def modo_nube():
     cab = {"x-device-token": token()}   # cabecera propia: ver la Edge Function
     print(f"ESP32 despierta (nube: {base})")
 
-    try:
-        r = requests.get(base, headers=cab, timeout=30)
-    except requests.exceptions.ConnectionError:
-        salir("no se puede conectar con Supabase")
+    r = con_reintentos(lambda: requests.get(base, headers=cab, timeout=30))
     if r.status_code == 401:
         salir("token rechazado por la Edge Function; revisa el secret DEVICE_TOKEN")
     if r.status_code >= 400:
@@ -165,7 +186,9 @@ def modo_nube():
         if hash_guardado(pantalla) == info["hash"]:
             print(f"  {pantalla:11s} sin cambios")
             continue
-        d = requests.get(base, params={"p": pantalla}, headers=cab, timeout=60).content
+        d = con_reintentos(
+            lambda: requests.get(base, params={"p": pantalla}, headers=cab, timeout=60)
+        ).content
         if len(d) != BYTES_ESPERADOS:
             salir(f"{pantalla}: llegaron {len(d)} bytes de {BYTES_ESPERADOS}")
         if hashlib.sha256(d).hexdigest() != info["hash"]:

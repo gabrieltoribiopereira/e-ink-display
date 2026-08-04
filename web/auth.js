@@ -8,10 +8,20 @@ const errorBox = document.getElementById("login-error");
 // Ambos divs arrancan con [hidden] para que no haya parpadeo ni se vea el
 // dashboard antes de saber si hay sesion. data-auth le dice al navegador del
 // server (Playwright) que la comprobacion ya termino y que puede mirar.
+let habiaSesion = false;
+
 function mostrarSesion(session) {
   dashboard.hidden = !session;
   login.hidden = !!session;
   document.body.dataset.auth = session ? "in" : "out";
+
+  // Los scripts arrancan con la pagina, antes de que Supabase restaure la
+  // sesion, asi que sus primeras peticiones salen sin usuario y vuelven vacias.
+  // Este aviso les dice cuando pueden volver a pedir los datos de verdad.
+  // onAuthStateChange se dispara varias veces, de ahi el control de transicion.
+  if (session && !habiaSesion) window.dispatchEvent(new Event("sesion-lista"));
+  if (!session && habiaSesion) olvidarAjustes();   // que otra cuenta no herede los mios
+  habiaSesion = !!session;
 }
 
 if (typeof CONFIG === "undefined" || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
@@ -24,6 +34,11 @@ if (typeof CONFIG === "undefined" || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_AN
 
 const { createClient } = supabase;
 const db = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+// El habit-tracker es un modulo aparte y necesita este mismo cliente para
+// guardar en Supabase. Se expone en window porque un `const` de un script
+// clasico no es accesible por nombre desde un modulo.
+window.db = db;
 
 // Estado inicial: sin esto la pagina se queda en blanco hasta que llegue el
 // primer onAuthStateChange.

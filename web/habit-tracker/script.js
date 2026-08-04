@@ -2,24 +2,59 @@
 
 const store = {
   clave: 'constancia',
+  vacio: () => ({ habitos: [], registro: {} }),
 
-  cargar() {
-    try {
-      const raw = localStorage.getItem(this.clave);
-      if (!raw) return { habitos: [], registro: {} };
-      return JSON.parse(raw);
-    } catch {
-      return { habitos: [], registro: {} };
+  // localStorage solo existe en el navegador que lo escribio. El renderizador de
+  // la nube abre un Chromium nuevo cada 20 min, asi que los datos tienen que
+  // vivir en Supabase o la pantalla del e-ink saldra siempre vacia.
+  // Deja apuntado de donde salieron los datos: iniciarHabitos lo necesita para
+  // saber si la carga es la definitiva o todavia falta la de Supabase.
+  ultimaFuente: 'local',
+
+  async cargar() {
+    this.ultimaFuente = 'local';
+    const db = window.db;
+    if (!db) return this.leerLocal();            // pagina suelta, sin sesion
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return this.leerLocal();
+    this.ultimaFuente = 'supabase';
+
+    const { data, error } = await db
+      .from('habitos').select('datos').eq('usuario', user.id).maybeSingle();
+    if (error) { console.warn('habitos:', error.message); return this.leerLocal(); }
+
+    if (!data) {
+      // Primera vez: sube lo que ya hubiera en este navegador, para no perderlo.
+      const local = this.leerLocal();
+      if (local.habitos.length) await this.guardar(local);
+      return local;
     }
+    return data.datos;
   },
 
-  guardar(datos) {
-    localStorage.setItem(this.clave, JSON.stringify(datos));
-  }
+  async guardar(datos) {
+    this.escribirLocal(datos);      // copia local: si falla la red no se pierde nada
+    const db = window.db;
+    if (!db) return;
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return;
+    const { error } = await db.from('habitos')
+      .upsert({ usuario: user.id, datos, actualizado: new Date().toISOString() });
+    if (error) console.warn('habitos: no se pudo guardar,', error.message);
+  },
+
+  leerLocal() {
+    try {
+      const raw = localStorage.getItem(this.clave);
+      return raw ? JSON.parse(raw) : this.vacio();
+    } catch { return this.vacio(); }
+  },
+  escribirLocal(datos) {
+    try { localStorage.setItem(this.clave, JSON.stringify(datos)); } catch {}
+  },
 };
 
-let datos = store.cargar();
-
+let datos = store.vacio();          // antes: store.cargar()
 /* ---------- UTILIDADES ---------- */
 
 const aISO = d => {
@@ -336,8 +371,8 @@ document.addEventListener('visibilitychange', () => {
 
 
 
-//* ---------- EVENTOS E INICIO (exportado) ---------- */
-export function iniciarHabitos(vista = 'constancia') {
+/* ---------- EVENTOS E INICIO (exportado) ---------- */
+export async function iniciarHabitos(vista = 'constancia') {
   const input = document.getElementById('nuevo');
 
   // El input/botón "Añadir" están en vista-habitos (oculta, pero existen).
@@ -359,5 +394,29 @@ export function iniciarHabitos(vista = 'constancia') {
     b.onclick = () => cambiarVista(b.dataset.vista);
   });
 
-  cambiarVista(vista);   // arranca directamente en la vista que le pases
+  const marco = () => document.querySelector('#pantalla-habitos .frame, .frame');
+
+  async function cargarYPintar() {
+    marco()?.removeAttribute('data-cargado');
+    datos = await store.cargar();
+    cambiarVista(vista);
+
+    // Aviso para el renderizador: ya hay datos y se puede capturar. Solo se
+    // marca cuando la carga es la definitiva. Si hay sesion pero los datos
+    // salieron del localStorage, todavia falta la de Supabase y capturar ahora
+    // congelaria la pantalla vacia en el e-ink.
+    const haySesion = document.body.dataset.auth === 'in';
+    if (store.ultimaFuente === 'supabase' || !haySesion) {
+      marco()?.setAttribute('data-cargado', '');
+    }
+  }
+
+  // Este modulo arranca junto con la pagina, antes de que Supabase restaure la
+  // sesion, asi que la primera carga sale vacia. Al iniciarse la sesion hay que
+  // recargar o los habitos no apareceran nunca.
+  window.db?.auth.onAuthStateChange((_evento, sesion) => {
+    if (sesion) cargarYPintar();
+  });
+
+  await cargarYPintar();
 }

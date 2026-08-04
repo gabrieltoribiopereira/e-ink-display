@@ -73,6 +73,11 @@ jobs:
       # 20 min que dejar el display sin actualizar nada.
       - name: Sincronizar Google Tasks
         continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          DISPLAY_EMAIL: ${{ secrets.DISPLAY_EMAIL }}
+          DISPLAY_PASSWORD: ${{ secrets.DISPLAY_PASSWORD }}
         run: python3 scripts/gtasks.py --auto
 
       # --solo-web no abre Chromium: lo abre generar-frames.js. Asi hay UN solo

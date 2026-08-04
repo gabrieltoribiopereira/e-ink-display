@@ -44,11 +44,18 @@ const PANTALLAS = [
     {
         id: 'pantalla-calendario',
         espera: async (page) => {
+            const rejilla = page.frameLocator('#pantalla-calendario').locator('.dhx_cal_data')
             try {
-                await page.frameLocator('#pantalla-calendario')
-                    .locator('.dhx_cal_data')
-                    .waitFor({ state: 'visible', timeout: 10000 })
-            } catch { console.warn('   aviso: el calendario no pinto a tiempo') }
+                await rejilla.waitFor({ state: 'visible', timeout: 15000 })
+            } catch {
+                console.warn('   aviso: el calendario no pinto a tiempo')
+                return
+            }
+            // .dhx_cal_data se hace visible VACIA y los eventos entran ~500 ms
+            // despues: capturar ahi congela el spinner en el e-ink. Se espera a
+            // que el contenido deje de cambiar, criterio que vale igual los dias
+            // sin ningun evento.
+            await esperarEstable(page, rejilla)
         },
     },
     {
@@ -65,14 +72,32 @@ const PANTALLAS = [
         espera: async (page) => {
             // constancia.js inyecta un .frame dentro de #pantalla-habitos; el div
             // #constancia se queda vacio, asi que esperar por el no sirve de nada.
+            // Y hay que esperar a [data-cargado], no solo al .frame: los datos
+            // vienen de Supabase y llegan DESPUES de que aparezca el marco, asi
+            // que sin esto se capturaria la pantalla vacia.
             try {
-                await page.locator('#pantalla-habitos .frame')
-                    .waitFor({ state: 'visible', timeout: 10000 })
-            } catch { console.warn('   aviso: los habitos no pintaron a tiempo') }
+                await page.locator('#pantalla-habitos .frame[data-cargado]')
+                    .waitFor({ state: 'visible', timeout: 15000 })
+            } catch { console.warn('   aviso: los habitos no cargaron a tiempo') }
             await page.waitForTimeout(300)
         },
     },
 ]
+
+// Espera a que el HTML de un elemento deje de cambiar entre dos muestras.
+// Sirve para contenido que se rellena por su cuenta y sin avisar, donde no hay
+// ningun selector que signifique "ya he terminado".
+async function esperarEstable(page, loc, muestras = 15, ms = 400) {
+    let previo = null
+    for (let i = 0; i < muestras; i++) {
+        const ahora = await loc.innerHTML().catch(() => null)
+        if (ahora !== null && ahora === previo) return true
+        previo = ahora
+        await page.waitForTimeout(ms)
+    }
+    console.warn('   aviso: el contenido seguia cambiando al agotar la espera')
+    return false
+}
 
 function credenciales() {
     // En GitHub Actions llegan por entorno; en local, del archivo de siempre.

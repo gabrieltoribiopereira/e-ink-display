@@ -5,11 +5,21 @@ let seleccionPendiente = null;   // la que llega del server al restaurar estado
 // La llama script.js al arrancar, antes de que se pinte nada.
 function todoRestaurar(i) { seleccionPendiente = i; }
 
+// Las tareas viven en Supabase, no en un archivo: asi la web funciona igual
+// desplegada en Netlify que en local, y las escribe gtasks.py desde el cron.
 async function cargarTareas() {
   const cont = document.getElementById("lista-tareas");
   try {
-    const res = await fetch("tareas.json?t=" + Date.now());
-    const datos = await res.json();
+    const db = window.db;
+    if (!db) { cont.textContent = "Sin conexión"; return; }
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return;            // aun sin sesion; se reintenta con sesion-lista
+
+    const { data, error } = await db
+      .from("tareas").select("datos").eq("usuario", user.id).maybeSingle();
+    if (error) throw error;
+
+    const datos = data?.datos ?? [];
     tareasActuales = datos.flatMap(l => l.tareas);
     // Se acota a la lista actual: la tarea guardada pudo desaparecer de Google
     // Tasks desde la ultima vez, y quedaria una seleccion apuntando a la nada.
@@ -24,6 +34,13 @@ async function cargarTareas() {
     console.error(e);
   }
 }
+
+// La primera carga puede caer antes de que Supabase restaure la sesion.
+window.addEventListener("sesion-lista", () => {
+  if (document.getElementById("pantalla-todo")?.classList.contains("activa")) {
+    cargarTareas();
+  }
+});
 
 function pintarTareas() {
   const cont = document.getElementById("lista-tareas");

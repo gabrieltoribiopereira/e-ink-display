@@ -1,5 +1,4 @@
 const CAL_BASE = "https://open-web-calendar.hosted.quelltext.eu/calendar.html";
-const CAL_ICS = CONFIG.ICS;
 
 const CAL_JS = `
 window.addEventListener("message", function (e) {
@@ -20,21 +19,28 @@ let calCargado = false;
 let calListo = false;
 const calCola = [];
 
-function calCargar() {
+async function calCargar() {
   if (calCargado) return;
+  // La URL del ICS ya no esta en config.js: se pide a Supabase tras el login.
+  const { ics } = await cargarAjustes();
+  if (!ics) {
+    console.warn("calendario: no hay ICS configurado en la tabla ajustes");
+    return;
+  }
+  calCargado = true;   // se marca aqui: sin esto, dos llamadas seguidas mientras
+                       // se esperan los ajustes cargarian el iframe dos veces
   const src = `${CAL_BASE}?language=es`
     + `&skin=flat`
     + `&title=Calendario`
     + `&tab=day&tabs=day&tabs=week`
     + `&javascript=${encodeURIComponent(CAL_JS)}`
-    + `&url=${encodeURIComponent(CAL_ICS)}`;
+    + `&url=${encodeURIComponent(ics)}`;
   const f = document.getElementById("pantalla-calendario");
   f.addEventListener("load", () => {
     calListo = true;
     calCola.splice(0).forEach(calEnviar);
   });
   f.src = src;
-  calCargado = true;
 }
 
 function calEnviar(msg) {

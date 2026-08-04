@@ -52,6 +52,22 @@ const TOKEN_GOOGLE = path.join(SECRETS, 'token.json')
 const TAREAS_TTL = 10 * 60 * 1000   // no llamar a la API de Google mas de una vez cada 10 min
 let ultimaSync = 0
 
+// gtasks.py escribe las tareas en Supabase para que la web las lea desde
+// cualquier dispositivo. En local esos datos estan repartidos entre config.js y
+// display.json; en CI llegan por entorno, y entonces esto no pisa nada.
+function credencialesSupabase() {
+    const env = {}
+    try {
+        const cfg = fs.readFileSync(path.join(SECRETS, 'config.js'), 'utf8')
+        env.SUPABASE_URL = cfg.match(/SUPABASE_URL:\s*["']([^"']+)["']/)?.[1]
+        env.SUPABASE_ANON_KEY = cfg.match(/SUPABASE_ANON_KEY:\s*["']([^"']+)["']/)?.[1]
+        const cuenta = JSON.parse(fs.readFileSync(path.join(SECRETS, 'display.json'), 'utf8'))
+        env.DISPLAY_EMAIL = cuenta.email
+        env.DISPLAY_PASSWORD = cuenta.password
+    } catch { /* sin secrets: gtasks.py avisa y guarda solo el archivo local */ }
+    return Object.fromEntries(Object.entries(env).filter(([, v]) => v))
+}
+
 async function actualizarTareas({ forzar = false } = {}) {
     if (!forzar && Date.now() - ultimaSync < TAREAS_TTL) return
     if (!fs.existsSync(TOKEN_GOOGLE)) {
@@ -66,7 +82,8 @@ async function actualizarTareas({ forzar = false } = {}) {
     ultimaSync = Date.now()   // se marca aunque falle, para no reintentar en cada captura
     try {
         // --auto evita que se abra el navegador de OAuth y deje el server colgado.
-        const { stdout } = await execFileP(VENV_PY, [GTASKS, '--auto'], { timeout: 30000 })
+        const { stdout } = await execFileP(VENV_PY, [GTASKS, '--auto'],
+            { timeout: 30000, env: { ...process.env, ...credencialesSupabase() } })
         console.log('Tareas sincronizadas:', stdout.trim())
     } catch (e) {
         console.warn('No se pudieron sincronizar las tareas:',
@@ -128,12 +145,28 @@ async function capturar() {
         await page.evaluate(() => cargarTareas())
         await page.waitForTimeout(200)
     }
-    // Si estamos en el calendario, esperar a que el iframe pinte la cuadricula
-    if (modo === 'pantalla-calendario') {
+    // Los habitos vienen de Supabase: el marco aparece antes que los datos, asi
+    // que hay que esperar a la marca que pone iniciarHabitos al terminar.
+    if (modo === 'pantalla-habitos') {
         try {
-            await page.frameLocator('#pantalla-calendario')
-                .locator('.dhx_cal_data')
-                .waitFor({ state: 'visible', timeout: 8000 })
+            await page.locator('#pantalla-habitos .frame[data-cargado]')
+                .waitFor({ state: 'visible', timeout: 15000 })
+        } catch (e) {}
+    }
+    // El calendario pinta la cuadricula vacia y mete los eventos ~500 ms
+    // despues, asi que no basta con esperar a que sea visible: se capturaria el
+    // spinner. Se espera ademas a que el HTML deje de cambiar.
+    if (modo === 'pantalla-calendario') {
+        const rejilla = page.frameLocator('#pantalla-calendario').locator('.dhx_cal_data')
+        try {
+            await rejilla.waitFor({ state: 'visible', timeout: 15000 })
+            let previo = null
+            for (let i = 0; i < 15; i++) {
+                const ahora = await rejilla.innerHTML().catch(() => null)
+                if (ahora !== null && ahora === previo) break
+                previo = ahora
+                await page.waitForTimeout(400)
+            }
         } catch (e) {}
     }
     const el = await page.$('.contenedor')

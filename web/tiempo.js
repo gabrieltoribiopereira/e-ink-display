@@ -56,8 +56,7 @@ getCurrentTimeDate()
 setInterval(getCurrentTimeDate, 1000)
 
 async function getWeather() {
-  const lat = CONFIG.LAT;
-  const lon = CONFIG.LON;
+  const { lat, lon } = await cargarAjustes();
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`;
 
   const res = await fetch(url);
@@ -81,4 +80,7 @@ function weatherText(code) {
 }
 
 getWeather();
+// Al arrancar todavia no hay sesion, asi que las coordenadas salen por defecto.
+// Cuando Supabase confirma el login se vuelve a pedir con las del usuario.
+window.addEventListener("sesion-lista", getWeather);
 setInterval(getWeather, 600000); // actualiza cada 10 minutos

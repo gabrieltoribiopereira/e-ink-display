@@ -23,3 +23,6 @@ node_modules/
 
 # Memoria simulada del ESP32
 esp32-sim/
+
+# Temporales del CLI de Supabase
+supabase/.temp/
