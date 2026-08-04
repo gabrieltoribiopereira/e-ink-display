@@ -55,9 +55,16 @@ async function subir({ url, clave }, archivo, tipo) {
     })
     if (!r.ok) {
         const cuerpo = await r.text()
-        if (r.status === 404) {
+        // Storage responde 400 con el codigo real dentro del cuerpo, asi que no
+        // vale con mirar r.status.
+        if (cuerpo.includes('NoSuchBucket') || cuerpo.includes('Bucket not found')) {
             salir(`el bucket "${BUCKET}" no existe.\n`
-                + '  Crealo en Supabase -> Storage -> New bucket, con Public DESACTIVADO')
+                + '  Crealo en Supabase -> Storage -> New bucket\n'
+                + `  Nombre: ${BUCKET}   Public: DESACTIVADO`)
+        }
+        if (cuerpo.includes('signature verification failed')) {
+            salir('SUPABASE_SERVICE_ROLE no es valida para este proyecto.\n'
+                + '  Debe ser la clave service_role (empieza por eyJ), no la anon ni una sb_')
         }
         salir(`${archivo} -> HTTP ${r.status}: ${cuerpo.slice(0, 200)}`)
     }
