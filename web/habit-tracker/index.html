@@ -70,6 +70,18 @@
     <button class="nav-btn" data-vista="constancia">Constancia</button>
   </nav>
 
+  <!-- Esta pagina tambien se abre suelta, fuera del dashboard. Sin estos tres
+       scripts no existiria window.db y lo que marcaras aqui se quedaria solo en
+       el localStorage de este navegador, sin llegar nunca a Supabase ni al
+       e-ink. La sesion se comparte con el dashboard por ser el mismo origen. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script>
+    if (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_URL) {
+      window.db = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    }
+  </script>
+
   <script type="module">
     import { iniciarHabitos } from './script.js';
     iniciarHabitos();
