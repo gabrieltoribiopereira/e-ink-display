@@ -36,6 +36,9 @@ The web renders the screens, a script turns them into a 2 bits per pixel image
 a `.h` file because it can't compile anything at runtime, and the `.h` is 6 times
 bigger anyway (600KB of text for 96KB of data).
 
+I know that there's 3 buttons in the habit tracker menu that don't work. It's just that
+I didn't want to program them because I don't think I will use them. 
+
 # How to install
 
 If you want to replicate the e-ink display there's a lot of thing you need to do.
