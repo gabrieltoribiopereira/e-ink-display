@@ -257,7 +257,7 @@ I didn't give the esp32 the supabase keys on purpose. If someone steals the devi
 the only thing they can do is download 4 pictures, not read my database.
 
 # Deploy via netlify
-
+(you could use other hosts i chose this because I used before and I'm used to it.)
 netlify.com -> Add new site -> Import an existing project -> github -> pick the repo.
 
 **Don't touch** the build command or the publish directory, netlify reads them from
