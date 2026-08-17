@@ -292,10 +292,10 @@ Open http://localhost:8002 and log in with the supabase user. Use `npm run web` 
 you are just editing the web, it doesn't launch chromium so it's way faster.
 
 Press a button and save the image it returns (this goes in another terminal, change
-the x for the button number):
+the x for the button number(1-4)):
 
 ```bash
-curl -s -X POST -d 'x' http://localhost:8002/boton -o prueba.png
+curl -s -X POST -d 'x' http://localhost:8002/boton -o prueba.png 
 
 # see the current screen without pressing anything
 curl -s http://localhost:8002/captura.png -o actual.png
