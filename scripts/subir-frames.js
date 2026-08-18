@@ -1,19 +1,3 @@
-#!/usr/bin/env node
-/**
- * Sube output/frames/ a Supabase Storage.
- *
- * Habla con la API REST de Storage a pelo en vez de usar @supabase/supabase-js:
- * son cuatro PUT y asi el proyecto no arrastra una dependencia mas.
- *
- * Variables de entorno (en local salen de secrets/, en CI de los secrets de
- * GitHub):
- *   SUPABASE_URL             https://xxxx.supabase.co
- *   SUPABASE_SERVICE_ROLE    clave con permiso de escritura (nunca en la web)
- *   SUPABASE_BUCKET          opcional, por defecto "frames"
- *
- * Uso:
- *   node scripts/subir-frames.js
- */
 const fs = require('fs')
 const path = require('path')
 

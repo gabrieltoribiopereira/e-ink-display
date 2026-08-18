@@ -1,12 +1,9 @@
 let tareasActuales = [];
 let seleccion = 0;
-let seleccionPendiente = null;   // la que llega del server al restaurar estado
+let seleccionPendiente = null;
 
-// La llama script.js al arrancar, antes de que se pinte nada.
 function todoRestaurar(i) { seleccionPendiente = i; }
 
-// Las tareas viven en Supabase, no en un archivo: asi la web funciona igual
-// desplegada en Netlify que en local, y las escribe gtasks.py desde el cron.
 async function cargarTareas() {
   const cont = document.getElementById("lista-tareas");
   try {

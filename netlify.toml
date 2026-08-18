@@ -2,15 +2,11 @@
   publish = "web"
   command = "node scripts/generar-config.js"
 
-# La web es una sola pagina: cualquier ruta que no sea un archivo real la
-# atiende index.html.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# config.js se genera en cada build y contiene la clave publica del proyecto.
-# Sin esto, un navegador podria quedarse con una version vieja tras rotar claves.
 [[headers]]
   for = "/config.js"
   [headers.values]

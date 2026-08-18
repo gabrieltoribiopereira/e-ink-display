@@ -1,37 +1,25 @@
 #!/usr/bin/env python3
-"""
-convertirimagenendosbits.py
 
-Al ejecutarse recorre TODAS las imagenes de esta carpeta y genera un archivo
-.h separado por cada una, en escala de 4 grises (2 bits por pixel, 4 px/byte,
-MSB-first). Formato compatible con Waveshare 7.5" e-Paper (EPD_7IN5_V2_4Gray).
-
-Uso:
-    python3 convertirimagenendosbits.py
-"""
 import argparse
 import os
 import re
 from PIL import Image
 
-# ------------------------- CONFIGURACION -------------------------
-# Carpeta a procesar: por defecto la carpeta donde esta este script.
+# Dirección de la carpeta a procesar
 FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output")
 
-# Reescalar todas las imagenes a este tamano. Pon None, None para conservar
-# el tamano original de cada imagen.
+# valores de la escalación y la rotación
 TARGET_WIDTH = None      # ej. 800
 TARGET_HEIGHT = None     # ej. 480
 ROTATE = 90
 INVERT = False           # True si negro/blanco salen al reves en el display
 LSB_FIRST = False        # True si la imagen sale espejada/desordenada
-# -----------------------------------------------------------------
 
-EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
+EXTS = {".png"}
 
 
-def quantize_4(value: int) -> int:
-    return value * 4 // 256  # 0..255 -> 0..3
+def quantize_4(value: int) -> int: #reducir pixeles a 4bits
+    return value * 4 // 256
 
 
 def sanitize(filename: str) -> str:
@@ -43,8 +31,8 @@ def sanitize(filename: str) -> str:
 
 
 def convert(path, rotate=None):
-    img = Image.open(path).convert("L")
-    r = ROTATE if rotate is None else rotate
+    img = Image.open(path).convert("L")  #cargar imagen
+    r = ROTATE if rotate is None else rotate #rotar
     if r:
         img = img.rotate(r, expand=True)     # 480x800 -> 800x480
     if TARGET_WIDTH or TARGET_HEIGHT:

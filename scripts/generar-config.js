@@ -1,18 +1,3 @@
-#!/usr/bin/env node
-/**
- * Genera web/config.js para el despliegue estatico (Netlify).
- *
- * En local ese archivo vive en secrets/ y lo sirve server.js; aqui se escribe
- * dentro de web/ porque Netlify solo publica esa carpeta.
- *
- * Solo se escriben datos PUBLICOS. La URL del calendario ya no va aqui: se
- * sirve sin login, asi que cualquiera podria leerla y con ella el calendario
- * entero. Vive en la tabla `ajustes` de Supabase, protegida por RLS.
- *
- * Variables de entorno (Netlify -> Site settings -> Environment variables):
- *   SUPABASE_URL
- *   SUPABASE_ANON_KEY      publica por diseno: lo que protege los datos es RLS
- */
 const fs = require('fs')
 const path = require('path')
 

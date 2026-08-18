@@ -1,20 +1,3 @@
-#!/usr/bin/env node
-/**
- * Renderiza las 4 pantallas y deja un .bin por cada una en output/frames/.
- *
- * El .bin es lo que descarga el ESP32: 800x480 a 2 bits por pixel = 96000
- * bytes exactos. El .h solo sirve para compilar imagenes dentro del firmware.
- *
- * Genera SIEMPRE las cuatro, aunque solo cambie una. Asi el ESP32 se las
- * descarga todas una vez y cambiar de pantalla con un boton es instantaneo,
- * sin pedirle nada a la red.
- *
- * Necesita la web servida (server.js, vale --solo-web) y trae su propio
- * navegador, para no depender del que abre el server.
- *
- * Uso:
- *   node scripts/generar-frames.js [--url http://localhost:8002]
- */
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
@@ -27,6 +10,8 @@ const execFileP = util.promisify(execFile)
 const RAIZ = path.join(__dirname, '..')
 const DESTINO = path.join(RAIZ, 'output', 'frames')
 const CONVERSOR = path.join(RAIZ, 'scripts', 'convertirimagenendosbits.py')
+const VENV_PY = path.join(RAIZ, '.venv', 'bin', 'python')
+const PYTHON = fs.existsSync(VENV_PY) ? VENV_PY : 'python3'
 
 const ANCHO = 800   // el panel es apaisado; la web se captura en vertical y el
 const ALTO = 480    // conversor la rota 90 grados
@@ -156,9 +141,9 @@ async function generar() {
         if (!el) throw new Error('no aparece .contenedor: la sesion no esta activa')
         fs.writeFileSync(png, await el.screenshot({ type: 'png' }))
 
-        // El conversor necesita Pillow, que esta en el python del SISTEMA (no en
-        // el venv, que solo tiene las librerias de Google).
-        await execFileP('python3', [
+        // El venv si existe (instalacion local segun el README) y si no el del
+        // sistema (en CI las dependencias van al python del runner).
+        await execFileP(PYTHON, [
             CONVERSOR, png, '--width', String(ANCHO), '--height', String(ALTO),
             '--name', corto, '--bin', bin,
         ])

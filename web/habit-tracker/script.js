@@ -1,14 +1,10 @@
-/* ---------- CAPA DE DATOS ---------- */
+// Revisado para futuras versiones es interesante revisar la funcion de heatmap
 
+// Guardar datos
 const store = {
   clave: 'constancia',
   vacio: () => ({ habitos: [], registro: {} }),
 
-  // localStorage solo existe en el navegador que lo escribio. El renderizador de
-  // la nube abre un Chromium nuevo cada 20 min, asi que los datos tienen que
-  // vivir en Supabase o la pantalla del e-ink saldra siempre vacia.
-  // Deja apuntado de donde salieron los datos: iniciarHabitos lo necesita para
-  // saber si la carga es la definitiva o todavia falta la de Supabase.
   ultimaFuente: 'local',
 
   async cargar() {
@@ -67,8 +63,7 @@ const hoyISO = () => aISO(new Date());
 
 const nuevoId = () => 'h' + Date.now().toString(36);
 
-/* ---------- ACCIONES ---------- */
-
+// Funciones del habit tracker
 function crearHabito(nombre) {
   nombre = nombre.trim();
   if (!nombre) return;
@@ -102,7 +97,7 @@ function persistir() {
   render();
 }
 
-/* ---------- NAVEGACION ---------- */
+//cambiar de pagina
 
 let vistaActual = 'habitos';
 
@@ -119,7 +114,7 @@ function cambiarVista(v) {
   render();
 }
 
-/* ---------- RENDER ---------- */
+//render interfaz grafica
 
 function render() {
   renderMeta();
@@ -189,7 +184,7 @@ function renderLista() {
   });
 }
 
-/* ---------- HEATMAP ---------- */
+// heatmap ME PARECE QUE FUNCIONA MAL CORREGIR EN UN FUTURO
 
 function nivel(fraccion) {
   if (fraccion <= 0) return '';
@@ -227,7 +222,7 @@ function renderHeatmap() {
   }
 }
 
-/* ---------- RACHA ---------- */
+// calcular racha
 
 function activosEn(fecha) {
   return datos.habitos.filter(h => h.creado <= fecha);
@@ -283,7 +278,7 @@ function renderRacha() {
   document.getElementById('racha-record').textContent = `Récord: ${record}`;
 }
 
-/* ---------- SEMANALES ---------- */
+// semana
 
 function diasSemana() {
   const hoy = new Date();
@@ -347,7 +342,7 @@ function renderFooter() {
     `<span>Actualizado ${hora}</span><span>${hechos}/${posibles} esta semana · ${pct}%</span>`;
 }
 
-/* ---------- CAMBIO DE DIA ---------- */
+// Dia
 
 let diaCargado = hoyISO();
 

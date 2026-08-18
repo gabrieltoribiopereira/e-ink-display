@@ -28,33 +28,29 @@ const MIME = {
     '.ico': 'image/x-icon',
 }
 
-let page = null   // pagina persistente: el navegador se abre UNA sola vez
+let page = null
 
-// Estado completo del display, no solo que pantalla se ve. Hace falta guardar
-// tambien el detalle interno (vista del calendario, scroll, tarea seleccionada)
-// porque en la nube cada renderizado arranca un navegador nuevo: sin esto el
-// calendario saldria SIEMPRE en vista dia y el boton de cambiar vista no
-// serviria de nada.
+
 let estado = {
     pantalla: 'pantalla-inicio',
-    vista: 'day',      // calendario: day | week
-    scroll: 0,         // calendario: desplazamiento acumulado en px
-    seleccion: 0,      // to-do: indice de la tarea marcada
+    vista: 'day',
+    scroll: 0,
+    seleccion: 0,
 }
 
-// --- Sincronizacion de Google Tasks -------------------------------------
-// gtasks.py necesita las librerias de Google, que estan en el venv y NO en el
-// python del sistema (al reves que Pillow, que usa el conversor). Por eso aqui
-// va la ruta explicita al interprete del venv.
+
 const VENV_PY = path.join(__dirname, '..', '.venv', 'bin', 'python')
+// El venv si existe (asi es como se instala en local siguiendo el README), y si
+// no el del sistema (en CI las dependencias van directas al python del runner).
+// Antes el conversor se llamaba con 'python3' a secas y solo funcionaba en
+// maquinas que ya tuvieran Pillow instalado a nivel de sistema.
+const PYTHON = fs.existsSync(VENV_PY) ? VENV_PY : 'python3'
 const GTASKS = path.join(__dirname, '..', 'scripts', 'gtasks.py')
 const TOKEN_GOOGLE = path.join(SECRETS, 'token.json')
 const TAREAS_TTL = 10 * 60 * 1000   // no llamar a la API de Google mas de una vez cada 10 min
 let ultimaSync = 0
 
-// gtasks.py escribe las tareas en Supabase para que la web las lea desde
-// cualquier dispositivo. En local esos datos estan repartidos entre config.js y
-// display.json; en CI llegan por entorno, y entonces esto no pisa nada.
+
 function credencialesSupabase() {
     const env = {}
     try {
@@ -81,7 +77,7 @@ async function actualizarTareas({ forzar = false } = {}) {
     }
     ultimaSync = Date.now()   // se marca aunque falle, para no reintentar en cada captura
     try {
-        // --auto evita que se abra el navegador de OAuth y deje el server colgado.
+
         const { stdout } = await execFileP(VENV_PY, [GTASKS, '--auto'],
             { timeout: 30000, env: { ...process.env, ...credencialesSupabase() } })
         console.log('Tareas sincronizadas:', stdout.trim())
@@ -93,18 +89,15 @@ async function actualizarTareas({ forzar = false } = {}) {
 
 async function initBrowser() {
     const env = { ...process.env }
-    delete env.LD_LIBRARY_PATH        // evita la glib vieja que inyecta Zed (Flatpak)
+    delete env.LD_LIBRARY_PATH
     const browser = await chromium.launch({ env })
     page = await browser.newPage()
-    // ?display=1 marca esta pestaña como la del e-ink: es la unica autorizada a
-    // leer y escribir /pantalla, para que navegar por la web no mueva el display.
     await page.goto(`http://localhost:${PORT}/?display=1`, { waitUntil: 'networkidle' })
     await iniciarSesion()
     console.log('Navegador listo')
 }
 
-// El navegador del server es una instancia limpia sin sesion: entra solo con
-// una cuenta dedicada para que el dashboard sea visible y se pueda capturar.
+
 async function iniciarSesion() {
     let cuenta
     try {
@@ -115,8 +108,6 @@ async function iniciarSesion() {
         return
     }
     // Login y dashboard arrancan ocultos hasta que Supabase resuelve la sesion.
-    // Hay que esperar a data-auth antes de mirar nada, o se confunde "todavia
-    // no se sabe" con "ya hay sesion".
     await page.waitForSelector('body[data-auth]', { timeout: 15000 })
     if (await page.getAttribute('body', 'data-auth') === 'in') return   // ya habia sesion
     await page.fill('#email', cuenta.email)
@@ -130,7 +121,7 @@ async function iniciarSesion() {
         throw new Error('No se pudo iniciar sesion: ' + (msg || 'timeout'))
     }
 }
-
+// capturar la pantalla
 async function capturar() {
     if (!(await page.locator('#dashboard').isVisible())) {
         throw new Error('Dashboard oculto: el navegador del server no tiene sesion. '
@@ -174,10 +165,13 @@ async function capturar() {
 }
 
 async function guardarYConvertir(imgBuffer, nombre = 'captura') {
+  // output/ no esta en el repo, asi que en un clon recien hecho no existe y
+  // writeFileSync fallaria con ENOENT.
+  fs.mkdirSync(OUT, { recursive: true })
   const pngPath = path.join(OUT, `${nombre}.png`)
   const hPath   = path.join(OUT, `${nombre}.h`)
-  fs.writeFileSync(pngPath, imgBuffer)          // 1) guarda la imagen
-      await execFileP('python3', [                  // 2) ejecuta el .py
+  fs.writeFileSync(pngPath, imgBuffer)
+      await execFileP(PYTHON, [
           path.join(__dirname, '..', 'scripts', 'convertirimagenendosbits.py'),
           pngPath,
           '--width', '800', '--height', '480',
@@ -187,34 +181,32 @@ async function guardarYConvertir(imgBuffer, nombre = 'captura') {
       console.log(`Convertido ${nombre}.png -> ${nombre}.h`)
 }
 
-// --- API del ESP32 -------------------------------------------------------
+// API del ESP32
 const FRAMES = path.join(OUT, 'frames')
 const CONVERSOR = path.join(__dirname, '..', 'scripts', 'convertirimagenendosbits.py')
 const RUTA_TOKEN = path.join(SECRETS, 'device-token.txt')
 const DEVICE_TOKEN = (process.env.DEVICE_TOKEN
     || (fs.existsSync(RUTA_TOKEN) ? fs.readFileSync(RUTA_TOKEN, 'utf8') : '')).trim()
 
-// Los nombres de pantalla vienen de la URL, asi que se comparan contra una
-// lista cerrada: sin esto un `../` permitiria leer cualquier archivo del disco.
+
 const PANTALLAS = ['inicio', 'calendario', 'todo', 'habitos']
 
 function autorizado(req) {
-    if (!DEVICE_TOKEN) return true      // sin token configurado la API queda abierta (solo local)
+    if (!DEVICE_TOKEN) return true
     const enviado = (req.headers.authorization || '').replace(/^Bearer /, '')
     const a = Buffer.from(enviado)
     const b = Buffer.from(DEVICE_TOKEN)
     return a.length === b.length && crypto.timingSafeEqual(a, b)
 }
 
-// Genera el frame de una pantalla: .png para mirarlo, .bin para el ESP32 y
-// .h por si quieres compilarlo dentro del firmware.
+
 async function guardarFrame(imgBuffer, pantalla) {
     fs.mkdirSync(FRAMES, { recursive: true })
     const png = path.join(FRAMES, `${pantalla}.png`)
     const bin = path.join(FRAMES, `${pantalla}.bin`)
     const h = path.join(FRAMES, `${pantalla}.h`)
     fs.writeFileSync(png, imgBuffer)
-    await execFileP('python3', [CONVERSOR, png,
+    await execFileP(PYTHON, [CONVERSOR, png,
         '--width', '800', '--height', '480', '--name', pantalla, '--out', h, '--bin', bin])
     const datos = fs.readFileSync(bin)
     return { pantalla, bytes: datos.length, hash: crypto.createHash('sha256').update(datos).digest('hex') }
@@ -232,7 +224,7 @@ const server = http.createServer((req, res) => {
     if (url.pathname.startsWith('/api/')) {
         if (!autorizado(req)) return json(res, 401, { error: 'token invalido' })
 
-        // Pulsar un boton y devolver los datos del frame resultante
+
         if (url.pathname === '/api/boton' && req.method === 'POST') {
             let body = ''
             req.on('data', c => (body += c))
@@ -255,8 +247,7 @@ const server = http.createServer((req, res) => {
             return
         }
 
-        // Que pantalla se ve ahora y con que hash: el ESP32 lo consulta para
-        // decidir si merece la pena descargar. Es lo que le ahorra bateria.
+
         if (url.pathname === '/api/estado' && req.method === 'GET') {
             const pantalla = estado.pantalla.replace('pantalla-', '')
             const bin = path.join(FRAMES, `${pantalla}.bin`)
@@ -277,8 +268,7 @@ const server = http.createServer((req, res) => {
             if (!fs.existsSync(archivo)) return json(res, 404, { error: 'frame no generado todavia' })
             const datos = fs.readFileSync(archivo)
             const etag = '"' + crypto.createHash('sha256').update(datos).digest('hex').slice(0, 32) + '"'
-            // Si el ESP32 ya tiene este frame, 304 y no descarga ni refresca la
-            // pantalla: un refresco completo del e-ink son ~4 s y mucho consumo.
+
             if (req.headers['if-none-match'] === etag) {
                 res.statusCode = 304
                 res.setHeader('ETag', etag)
@@ -362,8 +352,7 @@ const server = http.createServer((req, res) => {
     })
 })
 
-// --solo-web: sirve la web y nada mas. Para desarrollar sin esperar a que
-// arranque Chromium; /boton y /captura.png quedan fuera de servicio.
+
 const SOLO_WEB = process.argv.includes('--solo-web')
 
 server.listen(PORT, async () => {

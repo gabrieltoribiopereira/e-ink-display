@@ -26,8 +26,7 @@ def get_service(interactivo=True):
             flow = InstalledAppFlow.from_client_secrets_file(CREDS, SCOPES)
             creds = flow.run_local_server(port=0)
         else:
-            # Sin esto el server se quedaria colgado para siempre esperando a
-            # que alguien autorice en un navegador que nadie esta mirando.
+
             raise SystemExit(
                 "sin token valido y --auto no puede abrir el navegador; "
                 "ejecuta una vez a mano: .venv/bin/python scripts/gtasks.py"

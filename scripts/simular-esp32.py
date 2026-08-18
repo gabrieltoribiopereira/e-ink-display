@@ -6,8 +6,10 @@ Simula el cliente que ira dentro del ESP32. Habla con la API del server igual
 que lo hara el firmware, para poder probar toda la cadena sin hardware.
 
 Uso:
-    .venv/bin/python scripts/simular-esp32.py 3     # pulsa el boton 3
-    .venv/bin/python scripts/simular-esp32.py       # solo mira si hay cambios
+    .venv/bin/python scripts/simular-esp32.py 3           # pulsa el boton 3
+    .venv/bin/python scripts/simular-esp32.py 3 --ver     # y abre la imagen
+    .venv/bin/python scripts/simular-esp32.py             # solo mira si hay cambios
+    .venv/bin/python scripts/simular-esp32.py --nube --ver
 
 Todo se guarda en esp32-sim/, que hace de memoria del dispositivo.
 
@@ -19,6 +21,7 @@ hagan falta, para que la traduccion a MicroPython o C++ sea directa:
 """
 import hashlib
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -201,17 +204,41 @@ def modo_nube():
     print(f"ESP32 a dormir ({nuevas} de {len(manifiesto['pantallas'])} actualizadas)")
 
 
+def abrir_imagen(pantalla):
+    """
+    Reconstruye el .bin como PNG y lo abre. Es lo mismo que veria el panel:
+    girado 90 grados y con solo 4 grises, no la captura original.
+    """
+    subprocess.run(
+        [sys.executable, str(RAIZ / "scripts" / "ver-bin.py"),
+         str(DESTINO / f"{pantalla}.bin"), "--abrir"],
+        check=False,
+    )
+
+
 def main():
-    boton = None
-    if len(sys.argv) > 1 and sys.argv[1] == "--nube":
-        DESTINO.mkdir(exist_ok=True)
-        return modo_nube()
-    if len(sys.argv) > 1:
-        if sys.argv[1] not in ("1", "2", "3", "4"):
-            salir("el boton debe ser 1, 2, 3 o 4  (o --nube)")
-        boton = int(sys.argv[1])
+    args = sys.argv[1:]
+    # --ver abre la imagen al terminar; se saca de la lista antes de mirar el resto
+    ver = "--ver" in args
+    if ver:
+        args.remove("--ver")
 
     DESTINO.mkdir(exist_ok=True)
+
+    if args and args[0] == "--nube":
+        modo_nube()
+        if ver:
+            for p in PANTALLAS:
+                if (DESTINO / f"{p}.bin").exists():
+                    abrir_imagen(p)
+        return
+
+    boton = None
+    if args:
+        if args[0] not in ("1", "2", "3", "4"):
+            salir("el boton debe ser 1, 2, 3 o 4  (o --nube), con --ver opcional")
+        boton = int(args[0])
+
     print("ESP32 despierta")
 
     if boton:
@@ -224,6 +251,8 @@ def main():
     if hash_guardado(pantalla) == hash_nuevo:
         print(f"  hash sin cambios -> NO descargo, NO refresco el e-ink")
         print("ESP32 a dormir (ahorro: ~4 s de refresco)")
+        if ver:
+            abrir_imagen(pantalla)   # sigue en el panel, asi que se ensena igual
         return
 
     descargar(pantalla, hash_nuevo)
@@ -231,6 +260,9 @@ def main():
     # Aqui el ESP32 haria el refresco real del panel
     print(f"  refrescando e-ink con {pantalla}.bin")
     print("ESP32 a dormir")
+
+    if ver:
+        abrir_imagen(pantalla)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+//Botones. Creo que no voy a cambiar el diseño porque que palo de todas maneras no voy a interactuar con los botones de normal
 const pantallas = {
   "pantalla-inicio": [
     { emoji: "🏠", texto: "Start",  accion: () => mostrar("pantalla-inicio") },
@@ -27,10 +28,6 @@ const pantallas = {
 
 let modo = "pantalla-inicio";
 
-// Solo el navegador del server (el que genera las capturas y los .h) lleva
-// ?display=1. El estado de /pantalla es el del e-ink, asi que unicamente ese
-// navegador puede leerlo y escribirlo: si lo tocara cualquier pestaña abierta,
-// navegar por la web moveria el display, y viceversa.
 const ES_DISPLAY = new URLSearchParams(location.search).has("display");
 
 document.querySelectorAll(".boton").forEach((boton, i) => {
@@ -48,10 +45,7 @@ function render() {
   });
 }
 
-// Estado completo del display. No basta con la pantalla activa: si solo se
-// guardara eso, al recargar el calendario volveria a vista día y el To-Do a la
-// primera tarea. En la nube, donde cada renderizado abre un navegador nuevo,
-// eso haría inservibles los botones que cambian el detalle de una pantalla.
+
 const estado = { pantalla: "pantalla-inicio", vista: "day", scroll: 0, seleccion: 0 };
 
 function publicarEstado(cambios) {
@@ -64,8 +58,6 @@ function publicarEstado(cambios) {
   }).catch(() => {});
 }
 
-// Al cargar: el display restaura el estado guardado en el servidor; una pestaña
-// normal empieza siempre en inicio, sin consultar ni tocar nada.
 if (ES_DISPLAY) {
   fetch("/pantalla")
     .then(r => r.json())
@@ -90,4 +82,5 @@ function mostrar(id) {
   document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("activa"));
   document.getElementById(id).classList.add("activa");
   render();
+
 }

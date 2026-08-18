@@ -8,12 +8,10 @@ config.js
 secrets/
 *.log
 
-# Capturas y frames: se regeneran solos en cada ejecucion. Versionarlos mete
-# 600 KB de diff por pantalla cada vez, y ademas contienen datos privados
-# (calendario y tareas) en un repo publico.
+
 output/
 
-# Playwright
+
 node_modules/
 /test-results/
 /playwright-report/
