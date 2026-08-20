@@ -121,7 +121,7 @@ the frames are pictures of your calendar and your tasks.
 
 Project Settings -> API Keys -> save these two (the `service_role` one is inside
 the "Legacy API keys" tab):
-# sustituir esto por imagen editada
+<img width="994" height="210" alt="image" src="https://github.com/user-attachments/assets/4bd4c0f8-9fd5-49d5-bc68-d9435909b170" />
 
 Project Settings -> Data API -> save the Project URL. If you can't find it, it's
 always `https://<project-ref>.supabase.co` and the ref is in the url of the
