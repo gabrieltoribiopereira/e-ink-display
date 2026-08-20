@@ -76,7 +76,7 @@ for me.
 ### Create the tables
 
 Once the project is created go to SQL editor
-![](image_1.png)
+<img width="1318" height="619" alt="image" src="https://github.com/user-attachments/assets/8f29a524-499e-401d-99cd-77a875b595bb" />
 paste and execute the following code:
 
 ```sql
@@ -115,13 +115,13 @@ stopping other people from reading your habits and tasks.
 
 Storage -> New bucket -> name it `frames`. **Turn OFF the "Public bucket" switch**,
 the frames are pictures of your calendar and your tasks.
-![](image_2.png)
+<img width="1318" height="619" alt="image" src="https://github.com/user-attachments/assets/32cd0b62-9561-4c2d-bad7-d19b9f6cc6b1" />
 
 ### Save the keys
 
 Project Settings -> API Keys -> save these two (the `service_role` one is inside
 the "Legacy API keys" tab):
-![](image_3.png)
+# sustituir esto por imagen editada
 
 Project Settings -> Data API -> save the Project URL. If you can't find it, it's
 always `https://<project-ref>.supabase.co` and the ref is in the url of the
