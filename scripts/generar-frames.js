@@ -22,29 +22,41 @@ const arg = (n, def) => {
 }
 const URL_BASE = arg('--url', 'http://localhost:8002')
 
+// El calendario se pinta dos veces, una por vista. El ESP32 no tiene la logica
+// de botones de la web (esa vive en script.js), solo archivos: si la vista semana
+// no se renderiza aqui, el dispositivo no puede enseniarla de ninguna manera.
+// Con las dos descargadas, alternar es instantaneo y sin red.
+async function esperaCalendario(page) {
+    const rejilla = page.frameLocator('#pantalla-calendario').locator('.dhx_cal_data')
+    try {
+        await rejilla.waitFor({ state: 'visible', timeout: 15000 })
+    } catch {
+        console.warn('   aviso: el calendario no pinto a tiempo')
+        return
+    }
+    // .dhx_cal_data se hace visible VACIA y los eventos entran ~500 ms despues:
+    // capturar ahi congela el spinner en el e-ink. Se espera a que el contenido
+    // deje de cambiar, criterio que vale igual los dias sin ningun evento.
+    await esperarEstable(page, rejilla)
+}
+
+const alternarVista = (page) => page.evaluate(() => calToggleVista())
+
 // Cada pantalla se pinta a su ritmo: el calendario mete un iframe y los
 // habitos cargan otro documento aparte, asi que no vale con capturar y correr.
 const PANTALLAS = [
-    { id: 'pantalla-inicio', espera: async () => {} },
+    { id: 'pantalla-inicio', nombre: 'inicio', espera: async () => {} },
+    { id: 'pantalla-calendario', nombre: 'calendario', espera: esperaCalendario },
     {
         id: 'pantalla-calendario',
-        espera: async (page) => {
-            const rejilla = page.frameLocator('#pantalla-calendario').locator('.dhx_cal_data')
-            try {
-                await rejilla.waitFor({ state: 'visible', timeout: 15000 })
-            } catch {
-                console.warn('   aviso: el calendario no pinto a tiempo')
-                return
-            }
-            // .dhx_cal_data se hace visible VACIA y los eventos entran ~500 ms
-            // despues: capturar ahi congela el spinner en el e-ink. Se espera a
-            // que el contenido deje de cambiar, criterio que vale igual los dias
-            // sin ningun evento.
-            await esperarEstable(page, rejilla)
-        },
+        nombre: 'calendario-semana',
+        antes: alternarVista,     // dia -> semana
+        despues: alternarVista,   // y se deja como estaba, para no ensuciar el estado
+        espera: esperaCalendario,
     },
     {
         id: 'pantalla-todo',
+        nombre: 'todo',
         espera: async (page) => {
             // tareas.json ya lo refresco el workflow; aqui solo forzamos que la
             // pagina lo relea, porque pudo cargarlo antes de que se actualizara.
@@ -54,6 +66,7 @@ const PANTALLAS = [
     },
     {
         id: 'pantalla-habitos',
+        nombre: 'habitos',
         espera: async (page) => {
             // constancia.js inyecta un .frame dentro de #pantalla-habitos; el div
             // #constancia se queda vacio, asi que esperar por el no sirve de nada.
@@ -127,12 +140,13 @@ async function generar() {
 
     const manifiesto = { generado: new Date().toISOString(), ancho: ANCHO, alto: ALTO, bpp: 2, pantallas: {} }
 
-    for (const { id, espera } of PANTALLAS) {
-        const corto = id.replace('pantalla-', '')
+    for (const { id, nombre, espera, antes, despues } of PANTALLAS) {
+        const corto = nombre
         process.stdout.write(`-> ${corto}\n`)
 
         await page.evaluate((x) => mostrar(x), id)
         await page.waitForTimeout(400)
+        if (antes) await antes(page)      // p.ej. cambiar a vista semana
         await espera(page)
 
         const png = path.join(DESTINO, `${corto}.png`)
@@ -157,6 +171,7 @@ async function generar() {
             throw new Error(`${corto}.bin mide ${datos.length} bytes y deberia medir ${esperado}`)
         }
         console.log(`   ${datos.length} bytes  sha256:${hash.slice(0, 16)}`)
+        if (despues) await despues(page)   // deja la pantalla como estaba
     }
 
     fs.writeFileSync(path.join(DESTINO, 'manifest.json'), JSON.stringify(manifiesto, null, 2))

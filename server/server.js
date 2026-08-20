@@ -189,7 +189,7 @@ const DEVICE_TOKEN = (process.env.DEVICE_TOKEN
     || (fs.existsSync(RUTA_TOKEN) ? fs.readFileSync(RUTA_TOKEN, 'utf8') : '')).trim()
 
 
-const PANTALLAS = ['inicio', 'calendario', 'todo', 'habitos']
+const PANTALLAS = ['inicio', 'calendario', 'calendario-semana', 'todo', 'habitos']
 
 function autorizado(req) {
     if (!DEVICE_TOKEN) return true
@@ -260,7 +260,9 @@ const server = http.createServer((req, res) => {
         }
 
         // Descarga del frame: .bin son los 96000 bytes crudos, .h el array de C
-        const m = url.pathname.match(/^\/api\/frame\/([a-z]+)\.(bin|h)$/)
+        // El guion hace falta para nombres como "calendario-semana". Sigue sin
+        // admitir puntos ni barras, asi que no se puede escapar de FRAMES.
+        const m = url.pathname.match(/^\/api\/frame\/([a-z-]+)\.(bin|h)$/)
         if (m && req.method === 'GET') {
             const [, pantalla, ext] = m
             if (!PANTALLAS.includes(pantalla)) return json(res, 404, { error: 'pantalla desconocida' })

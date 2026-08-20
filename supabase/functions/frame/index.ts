@@ -18,7 +18,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const BUCKET = 'frames'
-const PANTALLAS = ['inicio', 'calendario', 'todo', 'habitos']
+const PANTALLAS = ['inicio', 'calendario', 'calendario-semana', 'todo', 'habitos']
 
 // Comparacion en tiempo constante: con un == normal, el tiempo de respuesta
 // delata cuantos caracteres del token son correctos.

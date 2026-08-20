@@ -30,7 +30,7 @@ import requests
 
 BASE = "http://localhost:8002"
 RAIZ = Path(__file__).resolve().parent.parent
-PANTALLAS = ["inicio", "calendario", "todo", "habitos"]
+PANTALLAS = ["inicio", "calendario", "calendario-semana", "todo", "habitos"]
 DESTINO = RAIZ / "esp32-sim"          # la "memoria" del ESP32
 ESTADO = DESTINO / "estado.json"
 BYTES_ESPERADOS = 800 * 480 * 2 // 8  # 96000: 2 bits por pixel
