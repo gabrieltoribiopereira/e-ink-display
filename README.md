@@ -6,15 +6,14 @@ back to sleep.
 
 # Components
 
-| | |
-|---|---|
-| Universal e-Paper Raw Panel Driver Board, ESP32 WiFi / Bluetooth Wireless | $14.99 |
-| 800×480, 7.5inch E-Ink display HAT for Raspberry Pi | $56.99 |
-| Battery | ~$10 |
-| TTP223 (10 units, you'll only use 4) | $1.65 |
-| Frame | $3-6 |
-| Cables | |
 
+| Universal e-Paper Raw Panel Driver Board, ESP32 WiFi / Bluetooth Wireless                                                       | $14,99  |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 800×480, 7.5inch E-Ink display HAT for Raspberry Pi                                                                             | $47,99  |
+| 974058 3000mAh Lipo Battery 3.7V Lithium Polymer Batteries PH2P for Massage Meter GPS Navigator Aeromodelling Rechargeable Cell | 10,99 € |
+| 20/50/100PCS/LOT NEW TTP223 Touch Button Module Capacitor Type Single Channel Self Locking Touch Switch Sensor for Arduino      | 2,12 €  |
+| Frame                                                                                                                           | 0,00 €  |
+| 2/5PCS 5V 1A Micro/Type-c/Mini 18650 TP4056 Lithium Battery Charger Module Charging Board With Protection Dual Functions Li-ion | 1,74€   |
 # Explanation
 
 I'll explain some of the tecnical desicions.
@@ -318,6 +317,16 @@ Only from the `inicio` screen you can jump to another screen. From the rest, but
 1 takes you back and the others do things inside that screen.
 
 If the port gets stuck: `fuser -k 8002/tcp`
+
+
+## Hardware setup
+
+Connect everything the same way that in CAD/Schematic. Print the case that is located in CAD/case, I encourage you to create your own case because I'm not an expert using cad sofware so the design is not perfect. 
+
+## ESP32 setup
+
+
+
 
 ---
 

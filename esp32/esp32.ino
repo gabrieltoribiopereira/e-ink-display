@@ -1,12 +1,3 @@
-// e-ink display firmware.
-//
-// Wake -> (button: draw a stored screen from flash, no radio)
-//      -> (timer/boot: sync frames from Supabase, redraw only if the visible one changed)
-//      -> deep sleep. loop() never runs.
-//
-// Frames are 800x480 at 2 bits per pixel (4 grays), 96000 bytes exactly,
-// stored in LittleFS together with one .hash file per screen.
-
 #include "config.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -16,19 +7,16 @@
 #include <SPI.h>
 #include <mbedtls/sha256.h>
 
-// Pins are fixed by the Waveshare ESP32 e-Paper driver board PCB.
 const int PIN_CLK = 13, PIN_DIN = 14, PIN_CS = 15;
 const int PIN_BUSY = 25, PIN_RST = 26, PIN_DC = 27;
 const int BUTTONS[4] = {32, 33, 34, 35};
 
 const char* SCREENS[] = {"inicio", "calendario", "calendario-semana", "todo", "habitos"};
 const int NUM_SCREENS = 5;
-const int FRAME_BYTES = 800 * 480 * 2 / 8;   // 96000
+const int FRAME_BYTES = 800 * 480 * 2 / 8;
 
 RTC_DATA_ATTR int wakeCount = 0;
-RTC_DATA_ATTR int currentScreen = 0;         // index into SCREENS, survives deep sleep
-
-// ---------- panel driver (UC8179 controller) ----------
+RTC_DATA_ATTR int currentScreen = 0;
 
 void cmd(uint8_t c) {
   digitalWrite(PIN_DC, LOW);
@@ -46,13 +34,12 @@ void data(const uint8_t* d, int n) {
 
 void cmdData(uint8_t c, const uint8_t* d, int n) { cmd(c); data(d, n); }
 
-// BUSY is LOW while the panel works; 0x71 refreshes the status flag.
 bool waitBusy(uint32_t limit = 40000) {
   uint32_t t0 = millis();
   while (true) {
     cmd(0x71);
     if (digitalRead(PIN_BUSY)) return true;
-    if (millis() - t0 > limit) return false;   // panel hung
+    if (millis() - t0 > limit) return false;
     delay(20);
   }
 }
@@ -63,8 +50,6 @@ void resetPanel() {
   digitalWrite(PIN_RST, HIGH); delay(20);
 }
 
-// Init sequences from Waveshare's official EPD_7in5_V2.c. The 4-gray mode
-// needs no LUT tables: 0xE0/0xE5 select a factory 4-gray waveform from OTP.
 void epdInit(bool fourGrays) {
   resetPanel();
   if (fourGrays) {
@@ -74,7 +59,7 @@ void epdInit(bool fourGrays) {
     const uint8_t e0[] = { 0x02 }, e5[] = { 0x5F };
     cmdData(0x00, panel, 1);
     cmdData(0x50, vcom, 2);
-    cmd(0x04); delay(100); waitBusy();          // power on
+    cmd(0x04); delay(100); waitBusy();
     cmdData(0x06, booster, 4);
     cmdData(0xE0, e0, 1);
     cmdData(0xE5, e5, 1);
@@ -82,13 +67,13 @@ void epdInit(bool fourGrays) {
     const uint8_t power[]   = { 0x07, 0x07, 0x3f, 0x3f };
     const uint8_t booster[] = { 0x17, 0x17, 0x27, 0x17 };
     const uint8_t panel[]   = { 0x1F };
-    const uint8_t res[]     = { 0x03, 0x20, 0x01, 0xE0 };   // 800 x 480
+    const uint8_t res[]     = { 0x03, 0x20, 0x01, 0xE0 };
     const uint8_t dual[]    = { 0x00 };
     const uint8_t vcom[]    = { 0x10, 0x07 };
     const uint8_t tcon[]    = { 0x22 };
     cmdData(0x01, power, 4);
     cmdData(0x06, booster, 4);
-    cmd(0x04); delay(100); waitBusy();          // power on
+    cmd(0x04); delay(100); waitBusy();
     cmdData(0x00, panel, 1);
     cmdData(0x61, res, 4);
     cmdData(0x15, dual, 1);
@@ -101,14 +86,10 @@ void epdSleep() {
   const uint8_t border[] = { 0xF7 };
   const uint8_t a5[]     = { 0xA5 };
   cmdData(0x50, border, 1);
-  cmd(0x02); waitBusy();                        // power off
-  cmdData(0x07, a5, 1);                         // panel deep sleep
+  cmd(0x02); waitBusy();
+  cmdData(0x07, a5, 1);
 }
 
-// Streams one bit-plane to the panel. The .bin has 4 pixels per byte,
-// MSB first, level 0=black .. 3=white (that's what the converter writes).
-// bit[level] says what this plane's bit is for each gray level.
-// The whole frame never sits in RAM: 2 KB in, 1 KB out, chunk by chunk.
 void writePlane(File& f, uint8_t command, const uint8_t bit[4]) {
   uint8_t table[256];
   for (int b = 0; b < 256; b++) {
@@ -144,27 +125,23 @@ bool drawScreen(const char* name) {
 
   epdInit(FOUR_GRAYS);
   if (FOUR_GRAYS) {
-    // Plane bits per gray level {black, dark, light, white},
-    // matching Waveshare's official EPD_7IN5_V2_Display_4Gray.
     const uint8_t plane10[4] = {1, 0, 1, 0};
     const uint8_t plane13[4] = {1, 1, 0, 0};
     writePlane(f, 0x10, plane10);
     writePlane(f, 0x13, plane13);
   } else {
-    const uint8_t plane10[4] = {0, 0, 1, 1};  // 1 = white
-    const uint8_t plane13[4] = {1, 1, 0, 0};  // complement
+    const uint8_t plane10[4] = {0, 0, 1, 1};
+    const uint8_t plane13[4] = {1, 1, 0, 0};
     writePlane(f, 0x10, plane10);
     writePlane(f, 0x13, plane13);
   }
   f.close();
 
-  cmd(0x12); delay(100);                      // refresh
+  cmd(0x12); delay(100);
   bool ok = waitBusy();
   epdSleep();
   return ok;
 }
-
-// ---------- network ----------
 
 bool connectWiFi() {
   WiFi.mode(WIFI_STA);
@@ -214,9 +191,6 @@ void toHex(const uint8_t* d, char* out) {
   out[64] = 0;
 }
 
-// Downloads to /<name>.tmp while hashing, verifies size + sha256 against the
-// manifest, and only then renames over /<name>.bin: the stored frame is always
-// either the old one or the new one, never half of each.
 bool downloadFrameOnce(const char* name, int expectedBytes, const char* expectedHash) {
   WiFiClientSecure client;
   client.setInsecure();
@@ -279,9 +253,6 @@ bool downloadFrameOnce(const char* name, int expectedBytes, const char* expected
   return true;
 }
 
-// The Edge Function shuts down when idle and the first request after a while
-// can fail while it cold-starts. Since we wake every 20 min, we hit that
-// almost every time: without retries the screen would go stale.
 bool downloadFrame(const char* name, int expectedBytes, const char* expectedHash) {
   for (int attempt = 1; attempt <= 3; attempt++) {
     if (downloadFrameOnce(name, expectedBytes, expectedHash)) return true;
@@ -292,8 +263,6 @@ bool downloadFrame(const char* name, int expectedBytes, const char* expectedHash
   }
   return false;
 }
-
-// ---------- hash memory in flash ----------
 
 String savedHash(const char* name) {
   File f = LittleFS.open(String("/") + name + ".hash", "r");
@@ -310,10 +279,6 @@ void saveHash(const char* name, const char* hash) {
   f.close();
 }
 
-// ---------- sync ----------
-
-// Returns true if the screen currently on the panel got a new frame.
-// (Not called sync(): that name already belongs to a system function.)
 bool syncFrames() {
   if (!connectWiFi()) return false;
 
@@ -358,8 +323,6 @@ bool syncFrames() {
   return currentChanged;
 }
 
-// ---------- navigation (mirrors the button bar in web/script.js) ----------
-
 int indexOf(const char* name) {
   for (int i = 0; i < NUM_SCREENS; i++)
     if (strcmp(SCREENS[i], name) == 0) return i;
@@ -374,13 +337,11 @@ int navigate(int current, int button) {
     if (button == 4) return indexOf("habitos");
     return current;
   }
-  if (button == 1) return indexOf("inicio");   // Start = back, on every screen
+  if (button == 1) return indexOf("inicio");
   if (strcmp(name, "calendario") == 0 && button == 4) return indexOf("calendario-semana");
   if (strcmp(name, "calendario-semana") == 0 && button == 4) return indexOf("calendario");
-  return current;   // Up/Down/Done need the server; offline they do nothing
+  return current;
 }
-
-// ---------- wake cycle ----------
 
 int buttonPressed() {
   uint64_t mask = esp_sleep_get_ext1_wakeup_status();
@@ -434,7 +395,7 @@ void setup() {
   } else {
     Serial.printf("Wake %d: first boot\n", wakeCount);
     syncFrames();
-    drawScreen(SCREENS[currentScreen]);   // always paint something on power-up
+    drawScreen(SCREENS[currentScreen]);
   }
 
   goToSleep();
