@@ -325,7 +325,47 @@ Connect everything the same way that in CAD/Schematic. Print the case that is lo
 
 ## ESP32 setup
 
+The firmware lives in "esp32/esp32.ino". It wakes up, downloads the frames from supabase, draws the screen and goes back to deepsleep. The buttons switch screens without wifi, everything is alredy stored in the flash.
 
+### Install Arduino IDE
+
+### Create esp32/config.h
+This file is in .gitignore on purpose, it carries your wifi password and the device token. Open `esp32/esp32.ino` in the IDE (File -> Open), then create the config next to it: click the three dots at the right of the tab bar -> New Tab,name it `config.h` and paste:
+
+```cpp
+#pragma once
+#define WIFI_SSID     "YourWifi"
+#define WIFI_PASS     "your-password"
+#define DEVICE_TOKEN  "the same one from secrets/device-token.txt"
+#define FRAMES_URL    "https://xxxx.supabase.co/functions/v1/frame"
+#define INTERVAL_S    (20 * 60)
+#define FOUR_GRAYS    1
+```
+
+### flash it 
+
+connect the display's flat cable to the driver board. Then plug the usb. 
+
+In the IDE:
+
+1. Tools-> Board esp32 -> **Esp32 Dev Module**
+2. Tools-> Port-> pick the one that appears when you plug the board
+3. Press the **upload** button.
+
+### Check that it works open tools -> serial monitor and set it to **115200 baud**. Press the EN button on the board to see it boot from the start. First boot should look like this:
+
+```
+Wake 1: first boot
+Connecting to WiFi.... connected, IP 192.168.1.42
+  inicio            downloaded
+  calendario        downloaded
+  calendario-semana downloaded
+  todo              downloaded
+  habitos           downloaded
+Sync done: 5 of 5 updated
+Drawing inicio
+Going to sleep
+```
 
 
 ---
